@@ -3,8 +3,7 @@ use std::{fmt, path::PathBuf, process, str::FromStr};
 use cfg_if::cfg_if;
 
 const ENV_WSTP_COMPILER_ADDITIONS_DIR: &str = "WSTP_COMPILER_ADDITIONS";
-
-// const ENV_WOLFRAM_LOCATION: &str = "RUST_WSTP_SYS_WOLFRAM_LOCATION";
+const ENV_WOLFRAM_LOCATION: &str = "RUST_WOLFRAM_LOCATION";
 
 //======================================
 // Types
@@ -96,6 +95,12 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
+        if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
+            // TODO: If an error occurs in from_path(), attach the fact that we're using
+            //       the environment variable to the error message.
+            return WolframApp::from_path(PathBuf::from(product_location));
+        }
+
         let location = wolframscript_output(
             &PathBuf::from("wolframscript"),
             &["-code".to_owned(), "$InstallationDirectory".to_owned()],
@@ -103,21 +108,6 @@ impl WolframApp {
 
         WolframApp::from_path(PathBuf::from(location))
     }
-
-    // pub fn try_from_env() -> Result<Self, Error> {
-    //     todo!()
-    //     // fn get_wolfram_output(input: &str) -> String {
-    //     //     let mut args = vec!["-code".to_owned(), input.to_owned()];
-
-    //     //     if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
-    //     //         let app = WolframApp::from_path(PathBuf::from(product_location))
-    //     //             .expect("invalid Wolfram app location");
-
-    //     //         args.push("-local".to_owned());
-    //     //         args.push(app.kernel_executable_path().unwrap().display().to_string());
-    //     //     }
-    //     // }
-    // }
 
     pub fn from_path(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {

@@ -268,7 +268,7 @@ fn platform_unsupported_error() -> Error {
 fn get_env_var(var: &'static str) -> Option<String> {
     // TODO: Add cargo feature to enable these print statements, so that
     //       wolfram-app-discovery works better when used in build.rs scripts.
-    // println!("cargo:rerun-if-env-changed={}", var);
+    println!("cargo:rerun-if-env-changed={}", var);
     match std::env::var(var) {
         Ok(string) => Some(string),
         Err(std::env::VarError::NotPresent) => None,

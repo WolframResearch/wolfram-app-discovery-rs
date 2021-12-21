@@ -2,8 +2,9 @@ use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;
 
-const ENV_WSTP_COMPILER_ADDITIONS_DIR: &str = "WSTP_COMPILER_ADDITIONS";
 const ENV_WOLFRAM_LOCATION: &str = "RUST_WOLFRAM_LOCATION";
+const ENV_WSTP_COMPILER_ADDITIONS_DIR: &str = "WSTP_COMPILER_ADDITIONS";
+const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 
 //======================================
 // Types
@@ -239,6 +240,21 @@ impl WolframApp {
             .join(static_archive_name);
 
         Ok(lib)
+    }
+
+    /// Returns the location of the directory containing *LibraryLink* C header files.
+    pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
+        if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
+            return Ok(PathBuf::from(path));
+        }
+
+        let path = if cfg!(target_os = "macos") {
+            self.location().join("SystemFiles/IncludeFiles/C/")
+        } else {
+            return Err(platform_unsupported_error());
+        };
+
+        Ok(path)
     }
 
     //----------------------------------

@@ -10,8 +10,14 @@ const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 // Types
 //======================================
 
+/// A local installation of the Wolfram System.
+#[derive(Debug)]
 pub struct WolframApp {
-    location: PathBuf,
+    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
+    /// installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    installation_directory: PathBuf,
 }
 
 #[non_exhaustive]
@@ -28,13 +34,17 @@ pub struct Error(String);
 // Functions
 //======================================
 
-/// Returns the `$SystemID` value of the system this code was built for.
+/// Returns the [`$SystemID`][ref/$SystemID] value of the system this code was built for.
 ///
 /// This does require access to a Wolfram Language evaluator.
 ///
+/// [ref/$SystemID]: https://reference.wolfram.com/language/ref/$SystemID.html
 // TODO: What exactly does this function mean if the user tries to cross-compile a
 //       library?
 // TODO: Use env!("TARGET") here and just call system_id_from_target()?
+// TODO: Add an `enum SystemID` and use it here. It should have an
+//         `as_str(&self) -> &'static str`
+//       method.
 pub fn target_system_id() -> &'static str {
     cfg_if![
         if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
@@ -99,7 +109,7 @@ impl WolframApp {
         if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_path(PathBuf::from(product_location));
+            return WolframApp::from_installation_directory(PathBuf::from(product_location));
         }
 
         let location = wolframscript_output(
@@ -107,10 +117,10 @@ impl WolframApp {
             &["-code".to_owned(), "$InstallationDirectory".to_owned()],
         )?;
 
-        WolframApp::from_path(PathBuf::from(location))
+        WolframApp::from_installation_directory(PathBuf::from(location))
     }
 
-    pub fn from_path(location: PathBuf) -> Result<WolframApp, Error> {
+    pub fn from_installation_directory(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {
             return Err(Error(format!(
                 "invalid Wolfram app location: not a directory: {}",
@@ -120,7 +130,7 @@ impl WolframApp {
 
         // FIXME: Implement at least some basic validation that this points to an
         //        actual Wolfram app.
-        Ok(WolframApp::unchecked_from_path(location))
+        Ok(WolframApp::unchecked_from_installation_directory(location))
 
         // if cfg!(target_os = "macos") {
         //     ... check for .app, application plist metadata, etc.
@@ -128,17 +138,23 @@ impl WolframApp {
         // }
     }
 
-    fn unchecked_from_path(location: PathBuf) -> WolframApp {
-        WolframApp { location }
+    fn unchecked_from_installation_directory(installation_directory: PathBuf) -> WolframApp {
+        WolframApp {
+            installation_directory,
+        }
     }
 
     // Properties
 
-    pub fn location(&self) -> &PathBuf {
-        &self.location
+    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
+    /// installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    pub fn installation_directory(&self) -> &PathBuf {
+        &self.installation_directory
     }
 
-    /// Returns a Wolfram Language version number.
+    /// Returns the Wolfram Language version number of this Wolfram installation.
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
         // MAJOR.MINOR
         let major_minor = self
@@ -149,7 +165,12 @@ impl WolframApp {
 
         let [major, mut minor]: [String; 2] = match <[String; 2]>::try_from(major_minor) {
             Ok(pair @ [_, _]) => pair,
-            Err(_) => panic!("$VersionNumber has unexpected number of components"),
+            Err(major_minor) => {
+                return Err(Error(format!(
+                    "$VersionNumber has unexpected number of components: {:?}",
+                    major_minor
+                )))
+            }
         };
         // This can happen in major versions, when $VersionNumber formats as e.g. "13."
         if minor == "" {
@@ -178,9 +199,11 @@ impl WolframApp {
         let path = if cfg!(target_os = "macos") {
             // TODO: In older versions of the product, MacOSX was used instead of MacOS.
             //       Look for either, depending on the version number.
-            self.location.join("MacOS").join("WolframKernel")
+            self.installation_directory()
+                .join("MacOS")
+                .join("WolframKernel")
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("kernel_executable_path()"));
         };
 
         if !path.is_file() {
@@ -201,8 +224,81 @@ impl WolframApp {
         Ok(PathBuf::from("wolframscript"))
     }
 
-    // TODO: Make this private, as this isn't really a "leaf" asset.
-    pub fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
+    /// Returns the location of the `wstp.h` header file.
+    pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
+        let path = self.wstp_compiler_additions_path()?.join("wstp.h");
+
+        if !path.is_file() {
+            return Err(Error(format!(
+                "wstp.h C header file does not exist in the expected location: {}",
+                path.display()
+            )));
+        }
+
+        Ok(path)
+    }
+
+    /// Returns the location of the WSTP static library.
+    pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
+        let static_archive_name = if cfg!(target_os = "macos") {
+            "libWSTPi4.a"
+        } else {
+            return Err(platform_unsupported_error("wstp_static_library_path()"));
+        };
+
+        let lib = self
+            .wstp_compiler_additions_path()?
+            .join(static_archive_name);
+
+        if !lib.is_file() {
+            return Err(Error(format!(
+                "WSTP static library file does not exist in the expected location: {}",
+                lib.display()
+            )));
+        }
+
+        Ok(lib)
+    }
+
+    /// Returns the location of the directory containing *LibraryLink* C header files.
+    ///
+    /// The standard set of *LibraryLink* C header files includes:
+    ///
+    /// * WolframLibrary.h
+    /// * WolframSparseLibrary.h
+    /// * WolframImageLibrary.h
+    /// * WolframNumericArrayLibrary.h
+    ///
+    /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
+    /// *LibraryLink* interface.
+    pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
+        if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
+            return Ok(PathBuf::from(path));
+        }
+
+        let path = if cfg!(target_os = "macos") {
+            self.installation_directory()
+                .join("SystemFiles/IncludeFiles/C/")
+        } else {
+            return Err(platform_unsupported_error("library_link_c_includes_path()"));
+        };
+
+        if !path.is_dir() {
+            return Err(Error(format!(
+                "LibraryLink C header includes directory does not exist in the expected \
+                location: {}",
+                path.display()
+            )));
+        }
+
+        Ok(path)
+    }
+
+    //----------------------------------
+    // Utilities
+    //----------------------------------
+
+    fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
         if let Some(path) = get_env_var(ENV_WSTP_COMPILER_ADDITIONS_DIR) {
             // // Force a rebuild if the path has changed. This happens when developing WSTP.
             // println!("cargo:rerun-if-changed={}", path.display());
@@ -210,12 +306,12 @@ impl WolframApp {
         }
 
         let path = if cfg!(target_os = "macos") {
-            self.location()
+            self.installation_directory()
                 .join("SystemFiles/Links/WSTP/DeveloperKit/")
                 .join(target_system_id())
                 .join("CompilerAdditions")
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("wstp_compiler_additions_path()"));
         };
 
         if !path.is_dir() {
@@ -227,39 +323,6 @@ impl WolframApp {
 
         Ok(path)
     }
-
-    pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
-        let static_archive_name = if cfg!(target_os = "macos") {
-            "libWSTPi4.a"
-        } else {
-            return Err(platform_unsupported_error());
-        };
-
-        let lib = self
-            .wstp_compiler_additions_path()?
-            .join(static_archive_name);
-
-        Ok(lib)
-    }
-
-    /// Returns the location of the directory containing *LibraryLink* C header files.
-    pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
-            return Ok(PathBuf::from(path));
-        }
-
-        let path = if cfg!(target_os = "macos") {
-            self.location().join("SystemFiles/IncludeFiles/C/")
-        } else {
-            return Err(platform_unsupported_error());
-        };
-
-        Ok(path)
-    }
-
-    //----------------------------------
-    // Utilities
-    //----------------------------------
 
     fn wolframscript_output(&self, input: &str) -> Result<String, Error> {
         let mut args = vec!["-code".to_owned(), input.to_owned()];
@@ -275,9 +338,10 @@ impl WolframApp {
 // Utilities
 //----------------------------------
 
-fn platform_unsupported_error() -> Error {
+fn platform_unsupported_error(name: &str) -> Error {
     Error(format!(
-        "operation is not yet implemented for this platform"
+        "operation '{}' is not yet implemented for this platform",
+        name
     ))
 }
 
@@ -333,6 +397,14 @@ fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Res
 //======================================
 // Formatting Impls
 //======================================
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Error(message) = self;
+
+        write!(f, "Wolfram app error: {}", message)
+    }
+}
 
 impl fmt::Display for WolframVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

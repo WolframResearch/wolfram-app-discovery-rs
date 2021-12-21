@@ -201,29 +201,9 @@ impl WolframApp {
         Ok(PathBuf::from("wolframscript"))
     }
 
-    // TODO: Make this private, as this isn't really a "leaf" asset.
-    pub fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_WSTP_COMPILER_ADDITIONS_DIR) {
-            // // Force a rebuild if the path has changed. This happens when developing WSTP.
-            // println!("cargo:rerun-if-changed={}", path.display());
-            return Ok(PathBuf::from(path));
-        }
-
-        let path = if cfg!(target_os = "macos") {
-            self.location()
-                .join("SystemFiles/Links/WSTP/DeveloperKit/")
-                .join(target_system_id())
-                .join("CompilerAdditions")
-        } else {
-            return Err(platform_unsupported_error("wstp_compiler_additions_path()"));
-        };
-
-        if !path.is_dir() {
-            return Err(Error(format!(
-                "WSTP CompilerAdditions directory does not exist in the expected location: {}",
-                path.display()
-            )));
-        }
+    /// Returns the location of the `wstp.h` header file.
+    pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
+        let path = self.wstp_compiler_additions_path()?.join("wstp.h");
 
         Ok(path)
     }
@@ -271,6 +251,32 @@ impl WolframApp {
     //----------------------------------
     // Utilities
     //----------------------------------
+
+    fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
+        if let Some(path) = get_env_var(ENV_WSTP_COMPILER_ADDITIONS_DIR) {
+            // // Force a rebuild if the path has changed. This happens when developing WSTP.
+            // println!("cargo:rerun-if-changed={}", path.display());
+            return Ok(PathBuf::from(path));
+        }
+
+        let path = if cfg!(target_os = "macos") {
+            self.location()
+                .join("SystemFiles/Links/WSTP/DeveloperKit/")
+                .join(target_system_id())
+                .join("CompilerAdditions")
+        } else {
+            return Err(platform_unsupported_error("wstp_compiler_additions_path()"));
+        };
+
+        if !path.is_dir() {
+            return Err(Error(format!(
+                "WSTP CompilerAdditions directory does not exist in the expected location: {}",
+                path.display()
+            )));
+        }
+
+        Ok(path)
+    }
 
     fn wolframscript_output(&self, input: &str) -> Result<String, Error> {
         let mut args = vec!["-code".to_owned(), input.to_owned()];

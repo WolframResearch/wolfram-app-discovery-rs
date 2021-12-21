@@ -180,7 +180,7 @@ impl WolframApp {
             //       Look for either, depending on the version number.
             self.location.join("MacOS").join("WolframKernel")
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("kernel_executable_path()"));
         };
 
         if !path.is_file() {
@@ -215,7 +215,7 @@ impl WolframApp {
                 .join(target_system_id())
                 .join("CompilerAdditions")
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("wstp_compiler_additions_path()"));
         };
 
         if !path.is_dir() {
@@ -232,7 +232,7 @@ impl WolframApp {
         let static_archive_name = if cfg!(target_os = "macos") {
             "libWSTPi4.a"
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("wstp_static_library_path()"));
         };
 
         let lib = self
@@ -251,7 +251,7 @@ impl WolframApp {
         let path = if cfg!(target_os = "macos") {
             self.location().join("SystemFiles/IncludeFiles/C/")
         } else {
-            return Err(platform_unsupported_error());
+            return Err(platform_unsupported_error("library_link_c_includes_path()"));
         };
 
         Ok(path)
@@ -275,9 +275,10 @@ impl WolframApp {
 // Utilities
 //----------------------------------
 
-fn platform_unsupported_error() -> Error {
+fn platform_unsupported_error(name: &str) -> Error {
     Error(format!(
-        "operation is not yet implemented for this platform"
+        "operation '{}' is not yet implemented for this platform",
+        name
     ))
 }
 

@@ -228,6 +228,7 @@ impl WolframApp {
         Ok(path)
     }
 
+    /// Returns the location of the WSTP static library.
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
         let static_archive_name = if cfg!(target_os = "macos") {
             "libWSTPi4.a"
@@ -243,6 +244,16 @@ impl WolframApp {
     }
 
     /// Returns the location of the directory containing *LibraryLink* C header files.
+    ///
+    /// The standard set of *LibraryLink* C header files includes:
+    ///
+    /// * WolframLibrary.h
+    /// * WolframSparseLibrary.h
+    /// * WolframImageLibrary.h
+    /// * WolframNumericArrayLibrary.h
+    ///
+    /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
+    /// *LibraryLink* interface.
     pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
         if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
             return Ok(PathBuf::from(path));

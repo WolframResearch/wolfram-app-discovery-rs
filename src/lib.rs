@@ -10,6 +10,7 @@ const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 // Types
 //======================================
 
+#[derive(Debug)]
 pub struct WolframApp {
     location: PathBuf,
 }
@@ -378,6 +379,14 @@ fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Res
 //======================================
 // Formatting Impls
 //======================================
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let Error(message) = self;
+
+        write!(f, "Wolfram app error: {}", message)
+    }
+}
 
 impl fmt::Display for WolframVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

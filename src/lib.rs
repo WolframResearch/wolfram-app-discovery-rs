@@ -10,9 +10,14 @@ const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 // Types
 //======================================
 
+/// A local installation of the Wolfram System.
 #[derive(Debug)]
 pub struct WolframApp {
-    location: PathBuf,
+    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
+    /// installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    installation_directory: PathBuf,
 }
 
 #[non_exhaustive]
@@ -29,13 +34,17 @@ pub struct Error(String);
 // Functions
 //======================================
 
-/// Returns the `$SystemID` value of the system this code was built for.
+/// Returns the [`$SystemID`][ref/$SystemID] value of the system this code was built for.
 ///
 /// This does require access to a Wolfram Language evaluator.
 ///
+/// [ref/$SystemID]: https://reference.wolfram.com/language/ref/$SystemID.html
 // TODO: What exactly does this function mean if the user tries to cross-compile a
 //       library?
 // TODO: Use env!("TARGET") here and just call system_id_from_target()?
+// TODO: Add an `enum SystemID` and use it here. It should have an
+//         `as_str(&self) -> &'static str`
+//       method.
 pub fn target_system_id() -> &'static str {
     cfg_if![
         if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
@@ -100,7 +109,7 @@ impl WolframApp {
         if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_path(PathBuf::from(product_location));
+            return WolframApp::from_installation_directory(PathBuf::from(product_location));
         }
 
         let location = wolframscript_output(
@@ -108,10 +117,10 @@ impl WolframApp {
             &["-code".to_owned(), "$InstallationDirectory".to_owned()],
         )?;
 
-        WolframApp::from_path(PathBuf::from(location))
+        WolframApp::from_installation_directory(PathBuf::from(location))
     }
 
-    pub fn from_path(location: PathBuf) -> Result<WolframApp, Error> {
+    pub fn from_installation_directory(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {
             return Err(Error(format!(
                 "invalid Wolfram app location: not a directory: {}",
@@ -121,7 +130,7 @@ impl WolframApp {
 
         // FIXME: Implement at least some basic validation that this points to an
         //        actual Wolfram app.
-        Ok(WolframApp::unchecked_from_path(location))
+        Ok(WolframApp::unchecked_from_installation_directory(location))
 
         // if cfg!(target_os = "macos") {
         //     ... check for .app, application plist metadata, etc.
@@ -129,17 +138,23 @@ impl WolframApp {
         // }
     }
 
-    fn unchecked_from_path(location: PathBuf) -> WolframApp {
-        WolframApp { location }
+    fn unchecked_from_installation_directory(installation_directory: PathBuf) -> WolframApp {
+        WolframApp {
+            installation_directory,
+        }
     }
 
     // Properties
 
-    pub fn location(&self) -> &PathBuf {
-        &self.location
+    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
+    /// installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    pub fn installation_directory(&self) -> &PathBuf {
+        &self.installation_directory
     }
 
-    /// Returns a Wolfram Language version number.
+    /// Returns the Wolfram Language version number of this Wolfram installation.
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
         // MAJOR.MINOR
         let major_minor = self
@@ -184,7 +199,9 @@ impl WolframApp {
         let path = if cfg!(target_os = "macos") {
             // TODO: In older versions of the product, MacOSX was used instead of MacOS.
             //       Look for either, depending on the version number.
-            self.location.join("MacOS").join("WolframKernel")
+            self.installation_directory()
+                .join("MacOS")
+                .join("WolframKernel")
         } else {
             return Err(platform_unsupported_error("kernel_executable_path()"));
         };
@@ -260,7 +277,8 @@ impl WolframApp {
         }
 
         let path = if cfg!(target_os = "macos") {
-            self.location().join("SystemFiles/IncludeFiles/C/")
+            self.installation_directory()
+                .join("SystemFiles/IncludeFiles/C/")
         } else {
             return Err(platform_unsupported_error("library_link_c_includes_path()"));
         };
@@ -288,7 +306,7 @@ impl WolframApp {
         }
 
         let path = if cfg!(target_os = "macos") {
-            self.location()
+            self.installation_directory()
                 .join("SystemFiles/Links/WSTP/DeveloperKit/")
                 .join(target_system_id())
                 .join("CompilerAdditions")

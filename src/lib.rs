@@ -195,6 +195,9 @@ impl WolframApp {
     // Files
     //----------------------------------
 
+    /// Returns the location of the
+    /// [`WolframKernel`](https://reference.wolfram.com/language/ref/program/WolframKernel.html)
+    /// executable.
     pub fn kernel_executable_path(&self) -> Result<PathBuf, Error> {
         let path = if cfg!(target_os = "macos") {
             // TODO: In older versions of the product, MacOSX was used instead of MacOS.
@@ -224,7 +227,9 @@ impl WolframApp {
         Ok(PathBuf::from("wolframscript"))
     }
 
-    /// Returns the location of the `wstp.h` header file.
+    /// Returns the location of the
+    /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
+    /// header file.
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
         let path = self.wstp_compiler_additions_path()?.join("wstp.h");
 
@@ -238,7 +243,9 @@ impl WolframApp {
         Ok(path)
     }
 
-    /// Returns the location of the WSTP static library.
+    /// Returns the location of the
+    /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
+    /// static library.
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
         let static_archive_name = if cfg!(target_os = "macos") {
             "libWSTPi4.a"
@@ -260,7 +267,9 @@ impl WolframApp {
         Ok(lib)
     }
 
-    /// Returns the location of the directory containing *LibraryLink* C header files.
+    /// Returns the location of the directory containing the
+    /// [Wolfram *LibraryLink*](https://reference.wolfram.com/language/guide/LibraryLink.html)
+    /// C header files.
     ///
     /// The standard set of *LibraryLink* C header files includes:
     ///

@@ -149,7 +149,12 @@ impl WolframApp {
 
         let [major, mut minor]: [String; 2] = match <[String; 2]>::try_from(major_minor) {
             Ok(pair @ [_, _]) => pair,
-            Err(_) => panic!("$VersionNumber has unexpected number of components"),
+            Err(major_minor) => {
+                return Err(Error(format!(
+                    "$VersionNumber has unexpected number of components: {:?}",
+                    major_minor
+                )))
+            }
         };
         // This can happen in major versions, when $VersionNumber formats as e.g. "13."
         if minor == "" {
@@ -205,6 +210,13 @@ impl WolframApp {
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
         let path = self.wstp_compiler_additions_path()?.join("wstp.h");
 
+        if !path.is_file() {
+            return Err(Error(format!(
+                "wstp.h C header file does not exist in the expected location: {}",
+                path.display()
+            )));
+        }
+
         Ok(path)
     }
 
@@ -219,6 +231,13 @@ impl WolframApp {
         let lib = self
             .wstp_compiler_additions_path()?
             .join(static_archive_name);
+
+        if !lib.is_file() {
+            return Err(Error(format!(
+                "WSTP static library file does not exist in the expected location: {}",
+                lib.display()
+            )));
+        }
 
         Ok(lib)
     }
@@ -244,6 +263,14 @@ impl WolframApp {
         } else {
             return Err(platform_unsupported_error("library_link_c_includes_path()"));
         };
+
+        if !path.is_dir() {
+            return Err(Error(format!(
+                "LibraryLink C header includes directory does not exist in the expected \
+                location: {}",
+                path.display()
+            )));
+        }
 
         Ok(path)
     }

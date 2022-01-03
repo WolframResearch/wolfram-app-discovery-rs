@@ -118,6 +118,8 @@ impl WolframApp {
             return WolframApp::from_installation_directory(PathBuf::from(product_location));
         }
 
+        // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
+        //        give a nicer error message.
         let location = wolframscript_output(
             &PathBuf::from("wolframscript"),
             &["-code".to_owned(), "$InstallationDirectory".to_owned()],
@@ -225,12 +227,28 @@ impl WolframApp {
         Ok(path)
     }
 
-    // TODO: Make this public?
-    fn wolframscript_executable_path(&self) -> Result<PathBuf, Error> {
-        // FIXME: This will use whatever `wolframscript` program is on the users
-        //        environment PATH. Look up the actual wolframscript executable in this
-        //        product.
-        Ok(PathBuf::from("wolframscript"))
+    /// Returns the location of the
+    /// [`wolframscript`](https://reference.wolfram.com/language/ref/program/wolframscript.html)
+    /// executable.
+    pub fn wolframscript_executable_path(&self) -> Result<PathBuf, Error> {
+        let path = if cfg!(target_os = "macos") {
+            PathBuf::from("MacOS").join("wolframscript")
+        } else {
+            return Err(platform_unsupported_error(
+                "wolframscript_executable_path()",
+            ));
+        };
+
+        let path = self.installation_directory().join(&path);
+
+        if !path.is_file() {
+            return Err(Error(format!(
+                "wolframscript executable does not exist in the expected location: {}",
+                path.display()
+            )));
+        }
+
+        Ok(dbg!(path))
     }
 
     /// Returns the location of the

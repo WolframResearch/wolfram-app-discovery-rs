@@ -81,17 +81,23 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
 //======================================
 
 impl WolframVersion {
-    /// First component of `$VersionNumber`.
+    /// First component of [`$VersionNumber`][ref/$VersionNumber].
+    ///
+    /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
     pub fn major(&self) -> u32 {
         self.major
     }
 
-    /// Second component of `$VersionNumber`.
+    /// Second component of [`$VersionNumber`][ref/$VersionNumber].
+    ///
+    /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
     pub fn minor(&self) -> u32 {
         self.minor
     }
 
-    /// `$ReleaseNumber`
+    /// [`$ReleaseNumber`][ref/$ReleaseNumber]
+    ///
+    /// [ref/$ReleaseNumber]: https://reference.wolfram.com/language/ref/$ReleaseNumber.html
     pub fn patch(&self) -> u32 {
         self.patch
     }

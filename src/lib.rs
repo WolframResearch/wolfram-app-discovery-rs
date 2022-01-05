@@ -30,6 +30,8 @@ pub struct WolframVersion {
 #[derive(Debug)]
 pub struct Error(String);
 
+impl std::error::Error for Error {}
+
 //======================================
 // Functions
 //======================================

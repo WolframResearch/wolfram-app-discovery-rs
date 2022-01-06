@@ -2,19 +2,23 @@
 
 #![warn(missing_docs)]
 
+
+pub mod config;
+mod find;
+
 #[doc(hidden)]
 mod test_readme {
     // Ensure that doc tests in the README.md file get run.
     #![doc = include_str!("../README.md")]
 }
 
+
 use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;
 
-const ENV_WOLFRAM_LOCATION: &str = "RUST_WOLFRAM_LOCATION";
-const ENV_WSTP_COMPILER_ADDITIONS_DIR: &str = "WSTP_COMPILER_ADDITIONS";
-const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
+use crate::config::get_env_var;
+
 
 //======================================
 // Types
@@ -25,11 +29,11 @@ const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 pub struct WolframApp {
     product: WolframProduct,
 
-    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
-    /// installation.
-    ///
-    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
-    installation_directory: PathBuf,
+    app_directory: PathBuf,
+
+    // If this is a Wolfram Engine application, then it contains an embedded Wolfram
+    // Player application that actually contains the WL system content.
+    embedded_player: Option<Box<WolframApp>>,
 }
 
 /// Wolfram Language version number.
@@ -45,7 +49,7 @@ pub struct WolframVersion {
 pub struct Error(String);
 
 /// Standalone product type distributed by Wolfram Research.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 #[cfg_attr(feature = "cli", derive(clap::ArgEnum))]
 pub enum WolframProduct {
     /// [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
@@ -100,7 +104,7 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
                 "no System ID value associated with Rust target triple: {}",
                 rust_target
             )))
-        }
+        },
     };
 
     Ok(id)
@@ -144,20 +148,51 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
-        if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
+        //------------------------------------------------------------------------
+        // If set, use RUST_WOLFRAM_LOCATION (deprecated) or WOLFRAM_APP_DIRECTORY
+        //------------------------------------------------------------------------
+
+        if let Some(dir) = config::get_env_default_installation_directory() {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_installation_directory(PathBuf::from(product_location));
+            return WolframApp::from_installation_directory(dir);
         }
 
-        // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
-        //        give a nicer error message.
-        let location = wolframscript_output(
-            &PathBuf::from("wolframscript"),
-            &["-code".to_owned(), "$InstallationDirectory".to_owned()],
-        )?;
+        if let Some(dir) = config::get_env_default_app_directory() {
+            return WolframApp::from_app_directory(dir);
+        }
 
-        WolframApp::from_installation_directory(PathBuf::from(location))
+        //-----------------------------------------------------------------------
+        // If wolframscript is on PATH, use it to evaluate $InstallationDirectory
+        //-----------------------------------------------------------------------
+
+        if let Some(dir) = try_wolframscript_installation_directory()? {
+            return WolframApp::from_installation_directory(dir);
+        }
+
+        //--------------------------------------------------
+        // Look in the operating system applications folder.
+        //--------------------------------------------------
+
+        // FIXME: Certain kinds of IO errors will cause this to fail, even though we
+        //        might successfully find an app if we were to continue looking. E.g. if
+        //        reading one particular application fails with a permissions error.
+        let apps: Vec<WolframApp> =
+            crate::find::search_apps_directory().map_err(|io_err: std::io::Error| {
+                Error(format!("error reading applications directory: {}", io_err))
+            })?;
+
+        if let Some(first) = apps.into_iter().next() {
+            return Ok(first);
+        }
+
+        //------------------------------------------------------------
+        // No Wolfram applications could be found, so return an error.
+        //------------------------------------------------------------
+
+        Err(Error(format!(
+            "unable to locate any Wolfram Language installations"
+        )))
     }
 
     /// Construct a `WolframApp` from an application directory path.
@@ -182,7 +217,7 @@ impl WolframApp {
                     "specified application location is missing file name component: {}",
                     app_dir.display()
                 )))
-            }
+            },
         };
 
         let file_name = match file_name.to_str() {
@@ -192,7 +227,7 @@ impl WolframApp {
                     "specified application location is not encoded in UTF-8: {}",
                     app_dir.display()
                 )))
-            }
+            },
         };
 
         if cfg!(target_os = "macos") {
@@ -204,29 +239,21 @@ impl WolframApp {
                 )));
             }
 
-            // FIXME: Replace this with more robust logic that actually checks the
-            //        CFBundleIdentifier.
-            let product = if file_name.contains("Mathematica") {
-                WolframProduct::Mathematica
-            } else if file_name.contains("Wolfram Desktop") {
-                WolframProduct::Desktop
-            } else if file_name.contains("Wolfram Engine") {
-                WolframProduct::Engine
-            } else if file_name.contains("Wolfram Player") {
-                WolframProduct::Player
-            } else {
-                return Err(Error(format!(
-                    "unrecognized Wolfram application name: {}",
-                    file_name
-                )));
+            let product = match WolframProduct::try_from_app_file_name(file_name) {
+                Some(product) => product,
+                None => {
+                    return Err(Error(format!(
+                        "unrecognized Wolfram application name: {}",
+                        file_name
+                    )));
+                },
             };
 
-            let installation_directory = app_dir.join("Contents");
-
-            Ok(WolframApp {
+            Ok(set_engine_embedded_player(WolframApp {
                 product,
-                installation_directory,
-            })
+                app_directory: app_dir,
+                embedded_player: None,
+            })?)
         } else {
             Err(platform_unsupported_error(
                 "WolframApp::from_app_directory()",
@@ -257,7 +284,11 @@ impl WolframApp {
         // delegate to from_app_directory().
         let app_dir: PathBuf = if cfg!(target_os = "macos") {
             if location.iter().last().unwrap() != "Contents" {
-                todo!("PRE_COMMIT")
+                return Err(Error(format!(
+                    "expected last component of installation directory to be \
+                    'Contents': {}",
+                    location.display()
+                )));
             }
 
             location.parent().unwrap().to_owned()
@@ -286,8 +317,20 @@ impl WolframApp {
     /// installation.
     ///
     /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
-    pub fn installation_directory(&self) -> &PathBuf {
-        &self.installation_directory
+    pub fn installation_directory(&self) -> PathBuf {
+        if let Some(ref player) = self.embedded_player {
+            return player.installation_directory();
+        }
+
+        if cfg!(target_os = "macos") {
+            self.app_directory.join("Contents")
+        } else {
+            // FIXME: Fill this in for Windows and Linux
+            panic!(
+                "{}",
+                platform_unsupported_error("WolframApp::from_app_directory()",)
+            )
+        }
     }
 
     /// Returns the Wolfram Language version number of this Wolfram installation.
@@ -306,7 +349,7 @@ impl WolframApp {
                     "$VersionNumber has unexpected number of components: {:?}",
                     major_minor
                 )))
-            }
+            },
         };
         // This can happen in major versions, when $VersionNumber formats as e.g. "13."
         if minor == "" {
@@ -359,6 +402,10 @@ impl WolframApp {
     /// [`wolframscript`](https://reference.wolfram.com/language/ref/program/wolframscript.html)
     /// executable.
     pub fn wolframscript_executable_path(&self) -> Result<PathBuf, Error> {
+        if let Some(ref player) = self.embedded_player {
+            return player.wolframscript_executable_path();
+        }
+
         let path = if cfg!(target_os = "macos") {
             PathBuf::from("MacOS").join("wolframscript")
         } else {
@@ -433,7 +480,11 @@ impl WolframApp {
     /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
     /// *LibraryLink* interface.
     pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
+        if let Some(ref player) = self.embedded_player {
+            return player.library_link_c_includes_path();
+        }
+
+        if let Some(path) = get_env_var(config::ENV_INCLUDE_FILES_C) {
             return Ok(PathBuf::from(path));
         }
 
@@ -460,7 +511,11 @@ impl WolframApp {
     //----------------------------------
 
     fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_WSTP_COMPILER_ADDITIONS_DIR) {
+        if let Some(ref player) = self.embedded_player {
+            return player.wstp_compiler_additions_path();
+        }
+
+        if let Some(path) = get_env_var(config::ENV_WSTP_COMPILER_ADDITIONS_DIR) {
             // // Force a rebuild if the path has changed. This happens when developing WSTP.
             // println!("cargo:rerun-if-changed={}", path.display());
             return Ok(PathBuf::from(path));
@@ -506,20 +561,17 @@ fn platform_unsupported_error(name: &str) -> Error {
     ))
 }
 
-fn get_env_var(var: &'static str) -> Option<String> {
-    // TODO: Add cargo feature to enable these print statements, so that
-    //       wolfram-app-discovery works better when used in build.rs scripts.
-    println!("cargo:rerun-if-env-changed={}", var);
-    match std::env::var(var) {
-        Ok(string) => Some(string),
-        Err(std::env::VarError::NotPresent) => None,
-        Err(std::env::VarError::NotUnicode(err)) => {
-            panic!("value of env var '{}' is not valid unicode: {:?}", var, err)
-        }
-    }
+pub(crate) fn print_platform_unimplemented_warning(op: &str) {
+    eprintln!(
+        "warning: operation '{}' is not yet implemented on this platform",
+        op
+    )
 }
 
-fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Result<String, Error> {
+fn wolframscript_output(
+    wolframscript_command: &PathBuf,
+    args: &[String],
+) -> Result<String, Error> {
     let output: process::Output = process::Command::new(wolframscript_command)
         .args(args)
         .output()
@@ -544,7 +596,7 @@ fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Res
                 err,
                 String::from_utf8_lossy(&output.stdout)
             );
-        }
+        },
     };
 
     let first_line = stdout
@@ -553,6 +605,78 @@ fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Res
         .expect("wolframscript output was empty");
 
     Ok(first_line.to_owned())
+}
+
+/// If `wolframscript` is available on the users PATH, use it to evaluate
+/// `$InstallationDirectory` to locate the default Wolfram Language installation.
+///
+/// If `wolframscript` is not on PATH, return `Ok(None)`.
+fn try_wolframscript_installation_directory() -> Result<Option<PathBuf>, Error> {
+    use std::process::Command;
+
+    // Use `wolframscript` if it's on PATH.
+    let wolframscript = PathBuf::from("wolframscript");
+
+    // Run `wolframscript -h` to test whether `wolframscript` exists. `-h` because it
+    // should never fail, never block, and only ever print to stdout.
+    if let Err(err) = Command::new(&wolframscript).args(&["-h"]).output() {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            // wolframscript executable is not available on PATH
+            return Ok(None);
+        } else {
+            return Err(Error(format!("unable to launch wolframscript: {}", err)));
+        }
+    };
+
+    // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
+    //        give a nicer error message.
+    let location = wolframscript_output(
+        &wolframscript,
+        &["-code".to_owned(), "$InstallationDirectory".to_owned()],
+    )?;
+
+    Ok(Some(PathBuf::from(location)))
+}
+
+// If `app` represents a Wolfram Engine app, set the `embedded_player` field to be the
+// WolframApp representation of the embedded Wolfram Player.app that backs WE.
+fn set_engine_embedded_player(mut app: WolframApp) -> Result<WolframApp, Error> {
+    if app.product() != WolframProduct::Engine {
+        return Ok(app);
+    }
+
+    let embedded_player_path = if cfg!(target_os = "macos") {
+        app.app_directory
+            .join("Contents")
+            .join("Resources")
+            .join("Wolfram Player.app")
+    } else {
+        // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
+        //       or is that only done on macOS?
+        print_platform_unimplemented_warning(
+            "determine Wolfram Engine path to embedded Wolfram Player",
+        );
+
+        // On the hope that returning `app` is more helpful than returning an error here,
+        // do that.
+        return Ok(app);
+    };
+
+    // TODO: If this `?` propagates an error
+    let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
+        Ok(player) => player,
+        Err(err) => {
+            return Err(Error(format!(
+                "Wolfram Engine application does not contain Wolfram Player.app in the \
+                expected location: {}",
+                err
+            )))
+        },
+    };
+
+    app.embedded_player = Some(Box::new(embedded_player));
+
+    Ok(app)
 }
 
 //======================================

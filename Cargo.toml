@@ -5,5 +5,27 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+#===================
+# Targets
+#===================
+
+[[bin]]
+name = "wolfram-app-discovery"
+required-features = ["cli"]
+
+#===================
+# Features
+#===================
+
+[features]
+default = []
+cli = ["clap"]
+
+#===================
+# Dependencies
+#===================
+
 [dependencies]
 cfg-if = "0.1.10"
+
+clap = { version = "3.0.4", features = ["derive"], optional = true }

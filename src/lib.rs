@@ -1,3 +1,7 @@
+//! Discovery local installations of the Wolfram Language and Wolfram products.
+
+#![warn(missing_docs)]
+
 use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;
@@ -22,6 +26,7 @@ pub struct WolframApp {
     installation_directory: PathBuf,
 }
 
+/// Wolfram Language version number.
 #[non_exhaustive]
 pub struct WolframVersion {
     major: u32,
@@ -29,6 +34,7 @@ pub struct WolframVersion {
     patch: u32,
 }
 
+/// Wolfram app discovery error.
 #[derive(Debug)]
 pub struct Error(String);
 
@@ -122,8 +128,10 @@ impl WolframVersion {
 }
 
 impl WolframApp {
-    /// Evaluate `$InstallationDirectory` using `wolframscript` to get location of the
-    /// developers Mathematica installation.
+    /// Evaluate [`$InstallationDirectory`][ref/$InstallationDirectory] using
+    /// `wolframscript` to get the location of the local Wolfram Language installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
     ///
     // TODO: Make this value settable using an environment variable; some people don't
     //       have wolframscript on their `PATH`, or they may have multiple Mathematica
@@ -146,6 +154,13 @@ impl WolframApp {
         WolframApp::from_installation_directory(PathBuf::from(location))
     }
 
+    /// Construct a `WolframApp` from an application directory path.
+    ///
+    /// # Example paths:
+    ///
+    /// Operating system | Example path
+    /// -----------------|-------------
+    /// macOS            | /Applications/Mathematica.app
     pub fn from_app_directory(app_dir: PathBuf) -> Result<WolframApp, Error> {
         if !app_dir.is_dir() {
             return Err(Error(format!(
@@ -213,6 +228,17 @@ impl WolframApp {
         }
     }
 
+    /// Construct a `WolframApp` from the
+    /// [`$InstallationDirectory`][ref/$InstallationDirectory]
+    /// of a Wolfram System installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    ///
+    /// # Example paths:
+    ///
+    /// Operating system | Example path
+    /// -----------------|-------------
+    /// macOS            | /Applications/Mathematica.app/Contents/
     pub fn from_installation_directory(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {
             return Err(Error(format!(

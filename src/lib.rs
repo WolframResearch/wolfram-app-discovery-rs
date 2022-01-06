@@ -157,14 +157,13 @@ impl WolframApp {
             return WolframApp::from_app_directory(dir);
         }
 
-        // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
-        //        give a nicer error message.
-        let location = wolframscript_output(
-            &PathBuf::from("wolframscript"),
-            &["-code".to_owned(), "$InstallationDirectory".to_owned()],
-        )?;
+        if let Some(dir) = try_wolframscript_installation_directory()? {
+            return WolframApp::from_installation_directory(dir);
+        }
 
-        WolframApp::from_installation_directory(PathBuf::from(location))
+        Err(Error(format!(
+            "unable to locate any Wolfram Language installations"
+        )))
     }
 
     /// Construct a `WolframApp` from an application directory path.
@@ -550,6 +549,37 @@ fn wolframscript_output(
         .expect("wolframscript output was empty");
 
     Ok(first_line.to_owned())
+}
+
+/// If `wolframscript` is available on the users PATH, use it to evaluate
+/// `$InstallationDirectory` to locate the default Wolfram Language installation.
+///
+/// If `wolframscript` is not on PATH, return `Ok(None)`.
+fn try_wolframscript_installation_directory() -> Result<Option<PathBuf>, Error> {
+    use std::process::Command;
+
+    // Use `wolframscript` if it's on PATH.
+    let wolframscript = PathBuf::from("wolframscript");
+
+    // Run `wolframscript -h` to test whether `wolframscript` exists. `-h` because it
+    // should never fail, never block, and only ever print to stdout.
+    if let Err(err) = Command::new(&wolframscript).args(&["-h"]).output() {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            // wolframscript executable is not available on PATH
+            return Ok(None);
+        } else {
+            return Err(Error(format!("unable to launch wolframscript: {}", err)));
+        }
+    };
+
+    // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
+    //        give a nicer error message.
+    let location = wolframscript_output(
+        &wolframscript,
+        &["-code".to_owned(), "$InstallationDirectory".to_owned()],
+    )?;
+
+    Ok(Some(PathBuf::from(location)))
 }
 
 //======================================

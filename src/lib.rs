@@ -2,6 +2,12 @@
 
 #![warn(missing_docs)]
 
+#[doc(hidden)]
+mod test_readme {
+    // Ensure that doc tests in the README.md file get run.
+    #![doc = include_str!("../README.md")]
+}
+
 use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;

@@ -147,6 +147,10 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
+        //------------------------------------------------------------------------
+        // If set, use RUST_WOLFRAM_LOCATION (deprecated) or WOLFRAM_APP_DIRECTORY
+        //------------------------------------------------------------------------
+
         if let Some(dir) = config::get_env_default_installation_directory() {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
@@ -157,9 +161,17 @@ impl WolframApp {
             return WolframApp::from_app_directory(dir);
         }
 
+        //-----------------------------------------------------------------------
+        // If wolframscript is on PATH, use it to evaluate $InstallationDirectory
+        //-----------------------------------------------------------------------
+
         if let Some(dir) = try_wolframscript_installation_directory()? {
             return WolframApp::from_installation_directory(dir);
         }
+
+        //------------------------------------------------------------
+        // No Wolfram applications could be found, so return an error.
+        //------------------------------------------------------------
 
         Err(Error(format!(
             "unable to locate any Wolfram Language installations"

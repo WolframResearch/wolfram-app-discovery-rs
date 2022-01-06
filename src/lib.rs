@@ -370,7 +370,7 @@ impl WolframApp {
             )));
         }
 
-        Ok(dbg!(path))
+        Ok(path)
     }
 
     /// Returns the location of the

@@ -14,9 +14,14 @@ fn main() -> Result<(), wad::Error> {
     let args: Args = Args::parse();
 
     let app = WolframApp::try_default()?;
+    let wl_version = app.wolfram_version()?;
 
-    println!("{:#?}", app);
-    println!("{:#?}", args);
+    println!("\nDefault Wolfram Language installation:\n");
+
+    println!("  Product:                     {:?}", app.product());
+    println!("  Wolfram Language version:    {}", wl_version);
+    #[rustfmt::skip]
+    println!("  $InstallationDirectory:      {}", app.installation_directory().display());
 
     Ok(())
 }

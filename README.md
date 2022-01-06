@@ -9,9 +9,7 @@ This crate provides:
 
 ## API Example
 
-Locate the default Wolfram Language installation on this computer, and use the
-`wolframscript` executable it provides to print a message:
-
+Locate the default Wolfram Language installation on this computer:
 ```rust
 use wolfram_app_discovery::WolframApp;
 

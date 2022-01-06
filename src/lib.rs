@@ -13,6 +13,8 @@ const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 /// A local installation of the Wolfram System.
 #[derive(Debug)]
 pub struct WolframApp {
+    product: WolframProduct,
+
     /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
     /// installation.
     ///
@@ -29,6 +31,20 @@ pub struct WolframVersion {
 
 #[derive(Debug)]
 pub struct Error(String);
+
+/// Standalone product type distributed by Wolfram Research.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "cli", derive(clap::ArgEnum))]
+pub enum WolframProduct {
+    /// [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
+    Mathematica,
+    /// [Wolfram Engine](https://wolfram.com/engine)
+    Engine,
+    /// [Wolfram Desktop](https://www.wolfram.com/desktop/)
+    Desktop,
+    /// [Wolfram Player](https://www.wolfram.com/player/)
+    Player,
+}
 
 impl std::error::Error for Error {}
 
@@ -130,6 +146,73 @@ impl WolframApp {
         WolframApp::from_installation_directory(PathBuf::from(location))
     }
 
+    pub fn from_app_directory(app_dir: PathBuf) -> Result<WolframApp, Error> {
+        if !app_dir.is_dir() {
+            return Err(Error(format!(
+                "specified application location is not a directory: {}",
+                app_dir.display()
+            )));
+        }
+
+        let file_name = match app_dir.file_name() {
+            Some(file_name) => file_name,
+            None => {
+                return Err(Error(format!(
+                    "specified application location is missing file name component: {}",
+                    app_dir.display()
+                )))
+            }
+        };
+
+        let file_name = match file_name.to_str() {
+            Some(name) => name,
+            None => {
+                return Err(Error(format!(
+                    "specified application location is not encoded in UTF-8: {}",
+                    app_dir.display()
+                )))
+            }
+        };
+
+        if cfg!(target_os = "macos") {
+            // TODO: This is possibly too restrictive?
+            if !file_name.ends_with(".app") {
+                return Err(Error(format!(
+                    "expected application directory name to end with .app: {}",
+                    app_dir.display()
+                )));
+            }
+
+            // FIXME: Replace this with more robust logic that actually checks the
+            //        CFBundleIdentifier.
+            let product = if file_name.contains("Mathematica") {
+                WolframProduct::Mathematica
+            } else if file_name.contains("Wolfram Desktop") {
+                WolframProduct::Desktop
+            } else if file_name.contains("Wolfram Engine") {
+                WolframProduct::Engine
+            } else if file_name.contains("Wolfram Player") {
+                WolframProduct::Player
+            } else {
+                return Err(Error(format!(
+                    "unrecognized Wolfram application name: {}",
+                    file_name
+                )));
+            };
+
+            let installation_directory = app_dir.join("Contents");
+
+            Ok(WolframApp {
+                product,
+                installation_directory,
+            })
+        } else {
+            Err(platform_unsupported_error(
+                "WolframApp::from_app_directory()",
+            ))
+        }
+    }
+
     pub fn from_installation_directory(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {
             return Err(Error(format!(
@@ -138,9 +221,21 @@ impl WolframApp {
             )));
         }
 
-        // FIXME: Implement at least some basic validation that this points to an
-        //        actual Wolfram app.
-        Ok(WolframApp::unchecked_from_installation_directory(location))
+        // Canonicalize the $InstallationDirectory to the application directory, then
+        // delegate to from_app_directory().
+        let app_dir: PathBuf = if cfg!(target_os = "macos") {
+            if location.iter().last().unwrap() != "Contents" {
+                todo!("PRE_COMMIT")
+            }
+
+            location.parent().unwrap().to_owned()
+        } else {
+            return Err(platform_unsupported_error(
+                "WolframApp::from_installation_directory()",
+            ));
+        };
+
+        WolframApp::from_app_directory(app_dir)
 
         // if cfg!(target_os = "macos") {
         //     ... check for .app, application plist metadata, etc.
@@ -148,13 +243,12 @@ impl WolframApp {
         // }
     }
 
-    fn unchecked_from_installation_directory(installation_directory: PathBuf) -> WolframApp {
-        WolframApp {
-            installation_directory,
-        }
-    }
-
     // Properties
+
+    /// Get the product type of this application.
+    pub fn product(&self) -> WolframProduct {
+        self.product.clone()
+    }
 
     /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
     /// installation.

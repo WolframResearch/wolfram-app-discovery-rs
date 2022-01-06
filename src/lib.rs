@@ -2,6 +2,9 @@
 
 #![warn(missing_docs)]
 
+
+pub mod config;
+
 #[doc(hidden)]
 mod test_readme {
     // Ensure that doc tests in the README.md file get run.
@@ -13,9 +16,8 @@ use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;
 
-const ENV_WOLFRAM_LOCATION: &str = "RUST_WOLFRAM_LOCATION";
-const ENV_WSTP_COMPILER_ADDITIONS_DIR: &str = "WSTP_COMPILER_ADDITIONS";
-const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
+use crate::config::get_env_var;
+
 
 //======================================
 // Types
@@ -145,12 +147,14 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
-        if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
+        if let Some(dir) = config::get_env_default_installation_directory() {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_installation_directory(PathBuf::from(
-                product_location,
-            ));
+            return WolframApp::from_installation_directory(dir);
+        }
+
+        if let Some(dir) = config::get_env_default_app_directory() {
+            return WolframApp::from_app_directory(dir);
         }
 
         // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
@@ -436,7 +440,7 @@ impl WolframApp {
     /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
     /// *LibraryLink* interface.
     pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_INCLUDE_FILES_C) {
+        if let Some(path) = get_env_var(config::ENV_INCLUDE_FILES_C) {
             return Ok(PathBuf::from(path));
         }
 
@@ -463,7 +467,7 @@ impl WolframApp {
     //----------------------------------
 
     fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
-        if let Some(path) = get_env_var(ENV_WSTP_COMPILER_ADDITIONS_DIR) {
+        if let Some(path) = get_env_var(config::ENV_WSTP_COMPILER_ADDITIONS_DIR) {
             // // Force a rebuild if the path has changed. This happens when developing WSTP.
             // println!("cargo:rerun-if-changed={}", path.display());
             return Ok(PathBuf::from(path));
@@ -507,19 +511,6 @@ fn platform_unsupported_error(name: &str) -> Error {
         "operation '{}' is not yet implemented for this platform",
         name
     ))
-}
-
-fn get_env_var(var: &'static str) -> Option<String> {
-    // TODO: Add cargo feature to enable these print statements, so that
-    //       wolfram-app-discovery works better when used in build.rs scripts.
-    println!("cargo:rerun-if-env-changed={}", var);
-    match std::env::var(var) {
-        Ok(string) => Some(string),
-        Err(std::env::VarError::NotPresent) => None,
-        Err(std::env::VarError::NotUnicode(err)) => {
-            panic!("value of env var '{}' is not valid unicode: {:?}", var, err)
-        }
-    }
 }
 
 fn wolframscript_output(

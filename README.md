@@ -13,13 +13,13 @@ Locate the default Wolfram Language installation on this computer, and use the
 `wolframscript` executable it provides to print a message:
 
 ```rust
-use std::process::Command;
-
 use wolfram_app_discovery::WolframApp;
 
-let app = WolframApp::try_default().expect("unable to locate any Wolfram applications");
+let app = WolframApp::try_default()
+    .expect("unable to locate any Wolfram applications");
 
-// Prints something like "$InstallationDirectory: /Applications/Mathematica.app/Contents/"
+// Prints a path like:
+//   $InstallationDirectory: /Applications/Mathematica.app/Contents/
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 

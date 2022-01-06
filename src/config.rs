@@ -1,6 +1,11 @@
 //! Configuration of `wolfram-app-discovery` behavior.
 
-use std::path::PathBuf;
+use std::{
+    path::PathBuf,
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+static PRINT_CARGO_INSTRUCTIONS: AtomicBool = AtomicBool::new(false);
 
 //======================================
 // Environment variable names
@@ -31,6 +36,30 @@ pub(crate) const ENV_INCLUDE_FILES_C: &str = "WOLFRAM_C_INCLUDES";
 //======================================
 // Functions
 //======================================
+
+/// Set whether or not `wolfram-app-discovery` will print
+/// `cargo:rerun-if-env-changed=<VAR>` instructions.
+///
+/// Defaults to `false`. The previous value for this configuration is returned.
+///
+/// If `true`, `wolfram-app-discovery` functions will print:
+///
+/// ```text
+/// cargo:rerun-if-env-changed=<VAR>
+/// ```
+///
+/// each time an environment variable is checked by this library (where `<VAR>` is the
+/// name of the environment variable).
+///
+/// Cargo build scripts are intended to set this variable to `true` to ensure that
+/// changes in the build's environment configuration will trigger a rebuild. See the
+/// [Build Scripts] section of the Cargo Book for more information.
+///
+///
+/// [Build Scripts]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#outputs-of-the-build-script
+pub fn set_print_cargo_build_script_instructions(should_print: bool) -> bool {
+    PRINT_CARGO_INSTRUCTIONS.swap(should_print, Ordering::SeqCst)
+}
 
 pub(crate) fn get_env_default_installation_directory() -> Option<PathBuf> {
     #[allow(deprecated)]
@@ -63,9 +92,10 @@ pub fn get_env_default_app_directory() -> Option<PathBuf> {
 }
 
 pub(crate) fn get_env_var(var: &'static str) -> Option<String> {
-    // TODO: Add cargo feature to enable these print statements, so that
-    //       wolfram-app-discovery works better when used in build.rs scripts.
-    println!("cargo:rerun-if-env-changed={}", var);
+    if PRINT_CARGO_INSTRUCTIONS.load(Ordering::SeqCst) {
+        println!("cargo:rerun-if-env-changed={}", var);
+    }
+
     match std::env::var(var) {
         Ok(string) => Some(string),
         Err(std::env::VarError::NotPresent) => None,

@@ -103,7 +103,7 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
                 "no System ID value associated with Rust target triple: {}",
                 rust_target
             )))
-        }
+        },
     };
 
     Ok(id)
@@ -189,7 +189,7 @@ impl WolframApp {
                     "specified application location is missing file name component: {}",
                     app_dir.display()
                 )))
-            }
+            },
         };
 
         let file_name = match file_name.to_str() {
@@ -199,7 +199,7 @@ impl WolframApp {
                     "specified application location is not encoded in UTF-8: {}",
                     app_dir.display()
                 )))
-            }
+            },
         };
 
         if cfg!(target_os = "macos") {
@@ -313,7 +313,7 @@ impl WolframApp {
                     "$VersionNumber has unexpected number of components: {:?}",
                     major_minor
                 )))
-            }
+            },
         };
         // This can happen in major versions, when $VersionNumber formats as e.g. "13."
         if minor == "" {
@@ -541,7 +541,7 @@ fn wolframscript_output(
                 err,
                 String::from_utf8_lossy(&output.stdout)
             );
-        }
+        },
     };
 
     let first_line = stdout

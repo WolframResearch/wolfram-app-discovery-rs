@@ -71,6 +71,6 @@ pub(crate) fn get_env_var(var: &'static str) -> Option<String> {
         Err(std::env::VarError::NotPresent) => None,
         Err(std::env::VarError::NotUnicode(err)) => {
             panic!("value of env var '{}' is not valid unicode: {:?}", var, err)
-        }
+        },
     }
 }

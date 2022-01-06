@@ -8,6 +8,7 @@ mod test_readme {
     #![doc = include_str!("../README.md")]
 }
 
+
 use std::{fmt, path::PathBuf, process, str::FromStr};
 
 use cfg_if::cfg_if;
@@ -147,7 +148,9 @@ impl WolframApp {
         if let Some(product_location) = get_env_var(ENV_WOLFRAM_LOCATION) {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_installation_directory(PathBuf::from(product_location));
+            return WolframApp::from_installation_directory(PathBuf::from(
+                product_location,
+            ));
         }
 
         // FIXME: Check if `wolframscript` is on the PATH first. If it isn't, we should
@@ -519,7 +522,10 @@ fn get_env_var(var: &'static str) -> Option<String> {
     }
 }
 
-fn wolframscript_output(wolframscript_command: &PathBuf, args: &[String]) -> Result<String, Error> {
+fn wolframscript_output(
+    wolframscript_command: &PathBuf,
+    args: &[String],
+) -> Result<String, Error> {
     let output: process::Output = process::Command::new(wolframscript_command)
         .args(args)
         .output()

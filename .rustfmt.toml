@@ -1,0 +1,3 @@
+max_width = 90
+blank_lines_upper_bound = 2
+merge_derives = false

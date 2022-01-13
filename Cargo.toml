@@ -7,20 +7,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 #===================
-# Targets
-#===================
-
-[[bin]]
-name = "wolfram-app-discovery"
-required-features = ["cli"]
-
-#===================
 # Features
 #===================
 
 [features]
 default = []
 cli = ["clap"]
+
+#===================
+# Targets
+#===================
+
+[[bin]]
+name = "wolfram-app-discovery"
+required-features = ["cli"]
 
 #===================
 # Dependencies

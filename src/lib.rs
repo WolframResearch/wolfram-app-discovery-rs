@@ -94,6 +94,11 @@ pub struct WolframVersion {
     patch: u32,
 }
 
+#[doc(hidden)]
+pub struct Filter {
+    pub app_types: Option<Vec<WolframAppType>>,
+}
+
 /// Wolfram app discovery error.
 #[derive(Debug)]
 pub struct Error(String);
@@ -113,6 +118,22 @@ impl std::error::Error for Error {}
 /// location, it may not be discoverable by this function.
 pub fn discover() -> Vec<WolframApp> {
     os::discover_all()
+}
+
+/// Discover all installed Wolfram applications that match the specified filtering
+/// parameters.
+///
+/// # Caveats
+///
+/// This function will use operating-system specific logic to discover installations of
+/// Wolfram applications. If a Wolfram application is installed to a non-standard
+/// location, it may not be discoverable by this function.
+pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
+    let mut apps = os::discover_all();
+
+    apps.retain(|app| filter.check_app(&app).is_ok());
+
+    apps
 }
 
 /// Returns the [`$SystemID`][ref/$SystemID] value of the system this code was built for.
@@ -229,6 +250,28 @@ impl AppVersion {
     }
 }
 
+impl Filter {
+    fn allow_all() -> Self {
+        Filter { app_types: None }
+    }
+
+    fn check_app(&self, app: &WolframApp) -> Result<(), Error> {
+        let Filter { app_types } = self;
+
+        // Filter by application type: Mathematica, Engine, Desktop, etc.
+        if let Some(app_types) = app_types {
+            if !app_types.contains(&app.app_type()) {
+                return Err(Error(format!(
+                    "application type '{:?}' is not present in list of filtered app types: {:?}",
+                    app.app_type(), app_types
+                )));
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl WolframApp {
     /// Evaluate [`$InstallationDirectory`][ref/$InstallationDirectory] using
     /// `wolframscript` to get the location of the local Wolfram Language installation.
@@ -240,6 +283,11 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
+        WolframApp::try_default_with_filter(&Filter::allow_all())
+    }
+
+    #[doc(hidden)]
+    pub fn try_default_with_filter(filter: &Filter) -> Result<Self, Error> {
         //------------------------------------------------------------------------
         // If set, use RUST_WOLFRAM_LOCATION (deprecated) or WOLFRAM_APP_DIRECTORY
         //------------------------------------------------------------------------
@@ -247,11 +295,33 @@ impl WolframApp {
         if let Some(dir) = config::get_env_default_installation_directory() {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_installation_directory(dir);
+            let app = WolframApp::from_installation_directory(dir)?;
+
+            // If the app doesn't satisfy the filter, return an error. We return an error
+            // instead of silently proceeding to try the next discovery step because
+            // setting an environment variable constitutes (typically) an explicit choice
+            // by the user to use a specific installation. We can't fulfill that choice
+            // because it doesn't satisfy the filter, but we can respect it by informing
+            // them via an error instead of silently ignoring their choice.
+            if let Err(err) = filter.check_app(&app) {
+                return Err(Error(format!(
+                    "app specified by environment variable does not match filter: {}",
+                    err
+                )));
+            }
+
+            return Ok(app);
         }
 
         if let Some(dir) = config::get_env_default_app_directory() {
-            return WolframApp::from_app_directory(dir);
+            let app = WolframApp::from_app_directory(dir)?;
+            if let Err(err) = filter.check_app(&app) {
+                return Err(Error(format!(
+                    "app specified by environment variable does not match filter: {}",
+                    err
+                )));
+            }
+            return Ok(app);
         }
 
         //-----------------------------------------------------------------------
@@ -259,7 +329,11 @@ impl WolframApp {
         //-----------------------------------------------------------------------
 
         if let Some(dir) = try_wolframscript_installation_directory()? {
-            return WolframApp::from_installation_directory(dir);
+            let app = WolframApp::from_installation_directory(dir)?;
+            // If the app doesn't pass the filter, silently ignore it.
+            if !filter.check_app(&app).is_err() {
+                return Ok(app);
+            }
         }
 
         //--------------------------------------------------

@@ -4,7 +4,6 @@
 
 
 pub mod config;
-mod find;
 
 mod os;
 
@@ -267,13 +266,7 @@ impl WolframApp {
         // Look in the operating system applications folder.
         //--------------------------------------------------
 
-        // FIXME: Certain kinds of IO errors will cause this to fail, even though we
-        //        might successfully find an app if we were to continue looking. E.g. if
-        //        reading one particular application fails with a permissions error.
-        let apps: Vec<WolframApp> =
-            crate::find::search_apps_directory().map_err(|io_err: std::io::Error| {
-                Error(format!("error reading applications directory: {}", io_err))
-            })?;
+        let apps: Vec<WolframApp> = discover_with_filter(filter);
 
         if let Some(first) = apps.into_iter().next() {
             return Ok(first);

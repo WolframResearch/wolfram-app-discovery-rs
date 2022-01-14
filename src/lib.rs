@@ -249,11 +249,12 @@ impl WolframApp {
                 },
             };
 
-            Ok(set_engine_embedded_player(WolframApp {
+            Ok(WolframApp {
                 product,
                 app_directory: app_dir,
                 embedded_player: None,
-            })?)
+            }
+            .set_engine_embedded_player()?)
         } else {
             Err(platform_unsupported_error(
                 "WolframApp::from_app_directory()",
@@ -638,45 +639,47 @@ fn try_wolframscript_installation_directory() -> Result<Option<PathBuf>, Error> 
     Ok(Some(PathBuf::from(location)))
 }
 
-// If `app` represents a Wolfram Engine app, set the `embedded_player` field to be the
-// WolframApp representation of the embedded Wolfram Player.app that backs WE.
-fn set_engine_embedded_player(mut app: WolframApp) -> Result<WolframApp, Error> {
-    if app.product() != WolframProduct::Engine {
-        return Ok(app);
-    }
+impl WolframApp {
+    /// If `app` represents a Wolfram Engine app, set the `embedded_player` field to be
+    /// the WolframApp representation of the embedded Wolfram Player.app that backs WE.
+    fn set_engine_embedded_player(mut self) -> Result<Self, Error> {
+        if self.product() != WolframProduct::Engine {
+            return Ok(self);
+        }
 
-    let embedded_player_path = if cfg!(target_os = "macos") {
-        app.app_directory
-            .join("Contents")
-            .join("Resources")
-            .join("Wolfram Player.app")
-    } else {
-        // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
-        //       or is that only done on macOS?
-        print_platform_unimplemented_warning(
-            "determine Wolfram Engine path to embedded Wolfram Player",
-        );
+        let embedded_player_path = if cfg!(target_os = "macos") {
+            self.app_directory
+                .join("Contents")
+                .join("Resources")
+                .join("Wolfram Player.app")
+        } else {
+            // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
+            //       or is that only done on macOS?
+            print_platform_unimplemented_warning(
+                "determine Wolfram Engine path to embedded Wolfram Player",
+            );
 
-        // On the hope that returning `app` is more helpful than returning an error here,
-        // do that.
-        return Ok(app);
-    };
+            // On the hope that returning `app` is more helpful than returning an error here,
+            // do that.
+            return Ok(self);
+        };
 
-    // TODO: If this `?` propagates an error
-    let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
-        Ok(player) => player,
-        Err(err) => {
-            return Err(Error(format!(
+        // TODO: If this `?` propagates an error
+        let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
+            Ok(player) => player,
+            Err(err) => {
+                return Err(Error(format!(
                 "Wolfram Engine application does not contain Wolfram Player.app in the \
                 expected location: {}",
                 err
             )))
-        },
-    };
+            },
+        };
 
-    app.embedded_player = Some(Box::new(embedded_player));
+        self.embedded_player = Some(Box::new(embedded_player));
 
-    Ok(app)
+        Ok(self)
+    }
 }
 
 //======================================

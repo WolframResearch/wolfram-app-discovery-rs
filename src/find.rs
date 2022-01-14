@@ -1,6 +1,6 @@
 use std::{io, path::PathBuf};
 
-use crate::{WolframApp, WolframProduct};
+use crate::WolframApp;
 
 /// Search the operating system applications directory.
 pub(crate) fn search_apps_directory() -> Result<Vec<WolframApp>, io::Error> {
@@ -56,37 +56,4 @@ fn find_macos_apps() -> Result<Vec<WolframApp>, io::Error> {
     // TODO: Sort by wolfram version number, once that doesn't requiring calling out to
     //       wolframscript (which is slow, ~few seconds per app) to compute.
     Ok(wolfram_apps)
-}
-
-impl WolframProduct {
-    pub(crate) fn try_from_app_file_name(name: &str) -> Option<Self> {
-        if cfg!(target_os = "macos") {
-            // FIXME: Replace this with more robust logic that actually checks the
-            //        CFBundleIdentifier.
-
-            // TODO: This is possibly too restrictive?
-            if !name.ends_with(".app") {
-                return None;
-            }
-
-            let product = if name.contains("Mathematica") {
-                WolframProduct::Mathematica
-            } else if name.contains("Wolfram Desktop") {
-                WolframProduct::Desktop
-            } else if name.contains("Wolfram Engine") {
-                WolframProduct::Engine
-            } else if name.contains("Wolfram Player") {
-                WolframProduct::Player
-            } else {
-                return None;
-            };
-
-            Some(product)
-        } else {
-            crate::print_platform_unimplemented_warning(
-                "WolframProduct::try_from_app_file_name()",
-            );
-            return None;
-        }
-    }
 }

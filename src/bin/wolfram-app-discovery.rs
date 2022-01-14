@@ -1,13 +1,13 @@
 use clap::Parser;
 
-use wolfram_app_discovery::{self as wad, WolframApp, WolframProduct};
+use wolfram_app_discovery::{self as wad, WolframApp, WolframAppType};
 
 /// Discovery local installations of the Wolfram Language and Wolfram products.
 #[derive(Parser, Debug)]
 struct Args {
     /// Wolfram products to include.
     #[clap(long, arg_enum)]
-    product: Vec<WolframProduct>,
+    product: Vec<WolframAppType>,
 }
 
 fn main() -> Result<(), wad::Error> {
@@ -18,7 +18,7 @@ fn main() -> Result<(), wad::Error> {
 
     println!("\nDefault Wolfram Language installation:\n");
 
-    println!("  Product:                     {:?}", app.product());
+    println!("  Product:                     {:?}", app.app_type());
     println!("  Wolfram Language version:    {}", wl_version);
     #[rustfmt::skip]
     println!("  $InstallationDirectory:      {}", app.installation_directory().display());

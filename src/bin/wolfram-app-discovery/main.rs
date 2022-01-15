@@ -1,3 +1,5 @@
+mod print_all_help;
+
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -29,6 +31,12 @@ enum Command {
         #[clap(flatten)]
         debug: Debug,
     },
+    // For generating `docs/CommandLineHelp.md`.
+    #[clap(setting(clap::AppSettings::Hidden))]
+    PrintAllHelp {
+        #[clap(long)]
+        markdown: bool,
+    },
 }
 
 #[derive(Parser, Debug)]
@@ -59,6 +67,10 @@ fn main() -> Result<(), wad::Error> {
         Command::Default(opts) => default(opts),
         Command::List(opts) => list(opts),
         Command::Inspect { app_dir, debug } => inspect(app_dir, debug.debug),
+        Command::PrintAllHelp { markdown } => {
+            print_all_help::print_all_help(markdown);
+            Ok(())
+        },
     }
 }
 

@@ -34,6 +34,9 @@ Default Wolfram Language installation:
   $InstallationDirectory:      /Applications/Wolfram/Mathematica-13.0.0.app/Contents
 ```
 
+See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
+`wolfram-app-discovery` command-line interface.
+
 ## Configuration
 
 The default method used to locate a Wolfram Language installation

@@ -4,7 +4,8 @@
 
 
 pub mod config;
-mod find;
+
+mod os;
 
 #[doc(hidden)]
 mod test_readme {
@@ -25,33 +26,31 @@ use crate::config::get_env_var;
 //======================================
 
 /// A local installation of the Wolfram System.
-#[derive(Debug)]
+#[rustfmt::skip]
+#[derive(Debug, Clone)]
 pub struct WolframApp {
-    product: WolframProduct,
+    //-----------------------
+    // Application properties
+    //-----------------------
+    #[allow(dead_code)]
+    app_name: String,
+    app_type: WolframAppType,
+    app_version: AppVersion,
 
     app_directory: PathBuf,
+
+    app_executable: Option<PathBuf>,
 
     // If this is a Wolfram Engine application, then it contains an embedded Wolfram
     // Player application that actually contains the WL system content.
     embedded_player: Option<Box<WolframApp>>,
 }
 
-/// Wolfram Language version number.
-#[non_exhaustive]
-pub struct WolframVersion {
-    major: u32,
-    minor: u32,
-    patch: u32,
-}
-
-/// Wolfram app discovery error.
-#[derive(Debug)]
-pub struct Error(String);
-
-/// Standalone product type distributed by Wolfram Research.
+/// Standalone application type distributed by Wolfram Research.
 #[derive(Debug, Clone, PartialEq, Hash)]
+#[non_exhaustive]
 #[cfg_attr(feature = "cli", derive(clap::ArgEnum))]
-pub enum WolframProduct {
+pub enum WolframAppType {
     /// [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
     Mathematica,
     /// [Wolfram Engine](https://wolfram.com/engine)
@@ -60,13 +59,82 @@ pub enum WolframProduct {
     Desktop,
     /// [Wolfram Player](https://www.wolfram.com/player/)
     Player,
+    /// [Wolfram Player Pro](https://www.wolfram.com/player-pro/)
+    #[doc(hidden)]
+    PlayerPro,
+    /// [Wolfram Finance Platform](https://www.wolfram.com/finance-platform/)
+    FinancePlatform,
+    /// [Wolfram Programming Lab](https://www.wolfram.com/programming-lab/)
+    ProgrammingLab,
+    /// [Wolfram|Alpha Notebook Edition](https://www.wolfram.com/wolfram-alpha-notebook-edition/)
+    WolframAlphaNotebookEdition,
+    // NOTE: When adding a new variant here, be sure to update WolframAppType::variants().
 }
+
+/// Wolfram application version number.
+///
+/// The major, minor, and revision components of most Wolfram applications will
+/// be the same as version of the Wolfram Language they provide.
+#[derive(Debug, Clone)]
+pub struct AppVersion {
+    major: u32,
+    minor: u32,
+    revision: u32,
+
+    minor_revision: Option<u32>,
+    build_code: u32,
+}
+
+/// Wolfram Language version number.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct WolframVersion {
+    major: u32,
+    minor: u32,
+    patch: u32,
+}
+
+#[doc(hidden)]
+pub struct Filter {
+    pub app_types: Option<Vec<WolframAppType>>,
+}
+
+/// Wolfram app discovery error.
+#[derive(Debug)]
+pub struct Error(String);
 
 impl std::error::Error for Error {}
 
 //======================================
 // Functions
 //======================================
+
+/// Discover all installed Wolfram applications.
+///
+/// # Caveats
+///
+/// This function will use operating-system specific logic to discover installations of
+/// Wolfram applications. If a Wolfram application is installed to a non-standard
+/// location, it may not be discoverable by this function.
+pub fn discover() -> Vec<WolframApp> {
+    os::discover_all()
+}
+
+/// Discover all installed Wolfram applications that match the specified filtering
+/// parameters.
+///
+/// # Caveats
+///
+/// This function will use operating-system specific logic to discover installations of
+/// Wolfram applications. If a Wolfram application is installed to a non-standard
+/// location, it may not be discoverable by this function.
+pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
+    let mut apps = os::discover_all();
+
+    apps.retain(|app| filter.check_app(&app).is_ok());
+
+    apps
+}
 
 /// Returns the [`$SystemID`][ref/$SystemID] value of the system this code was built for.
 ///
@@ -114,6 +182,24 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
 // Struct Impls
 //======================================
 
+impl WolframAppType {
+    /// Enumerate all `WolframAppType` variants.
+    pub fn variants() -> Vec<WolframAppType> {
+        use WolframAppType::*;
+
+        vec![
+            Mathematica,
+            Desktop,
+            Engine,
+            Player,
+            PlayerPro,
+            FinancePlatform,
+            ProgrammingLab,
+            WolframAlphaNotebookEdition,
+        ]
+    }
+}
+
 impl WolframVersion {
     /// First component of [`$VersionNumber`][ref/$VersionNumber].
     ///
@@ -137,6 +223,55 @@ impl WolframVersion {
     }
 }
 
+impl AppVersion {
+    #[allow(missing_docs)]
+    pub fn major(&self) -> u32 {
+        self.major
+    }
+
+    #[allow(missing_docs)]
+    pub fn minor(&self) -> u32 {
+        self.minor
+    }
+
+    #[allow(missing_docs)]
+    pub fn revision(&self) -> u32 {
+        self.revision
+    }
+
+    #[allow(missing_docs)]
+    pub fn minor_revision(&self) -> Option<u32> {
+        self.minor_revision
+    }
+
+    #[allow(missing_docs)]
+    pub fn build_code(&self) -> u32 {
+        self.build_code
+    }
+}
+
+impl Filter {
+    fn allow_all() -> Self {
+        Filter { app_types: None }
+    }
+
+    fn check_app(&self, app: &WolframApp) -> Result<(), Error> {
+        let Filter { app_types } = self;
+
+        // Filter by application type: Mathematica, Engine, Desktop, etc.
+        if let Some(app_types) = app_types {
+            if !app_types.contains(&app.app_type()) {
+                return Err(Error(format!(
+                    "application type '{:?}' is not present in list of filtered app types: {:?}",
+                    app.app_type(), app_types
+                )));
+            }
+        }
+
+        Ok(())
+    }
+}
+
 impl WolframApp {
     /// Evaluate [`$InstallationDirectory`][ref/$InstallationDirectory] using
     /// `wolframscript` to get the location of the local Wolfram Language installation.
@@ -148,6 +283,11 @@ impl WolframApp {
     //       installations and will want to be able to exactly specify which one to use.
     //       WOLFRAM_INSTALLATION_DIRECTORY.
     pub fn try_default() -> Result<Self, Error> {
+        WolframApp::try_default_with_filter(&Filter::allow_all())
+    }
+
+    #[doc(hidden)]
+    pub fn try_default_with_filter(filter: &Filter) -> Result<Self, Error> {
         //------------------------------------------------------------------------
         // If set, use RUST_WOLFRAM_LOCATION (deprecated) or WOLFRAM_APP_DIRECTORY
         //------------------------------------------------------------------------
@@ -155,11 +295,33 @@ impl WolframApp {
         if let Some(dir) = config::get_env_default_installation_directory() {
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
-            return WolframApp::from_installation_directory(dir);
+            let app = WolframApp::from_installation_directory(dir)?;
+
+            // If the app doesn't satisfy the filter, return an error. We return an error
+            // instead of silently proceeding to try the next discovery step because
+            // setting an environment variable constitutes (typically) an explicit choice
+            // by the user to use a specific installation. We can't fulfill that choice
+            // because it doesn't satisfy the filter, but we can respect it by informing
+            // them via an error instead of silently ignoring their choice.
+            if let Err(err) = filter.check_app(&app) {
+                return Err(Error(format!(
+                    "app specified by environment variable does not match filter: {}",
+                    err
+                )));
+            }
+
+            return Ok(app);
         }
 
         if let Some(dir) = config::get_env_default_app_directory() {
-            return WolframApp::from_app_directory(dir);
+            let app = WolframApp::from_app_directory(dir)?;
+            if let Err(err) = filter.check_app(&app) {
+                return Err(Error(format!(
+                    "app specified by environment variable does not match filter: {}",
+                    err
+                )));
+            }
+            return Ok(app);
         }
 
         //-----------------------------------------------------------------------
@@ -167,20 +329,18 @@ impl WolframApp {
         //-----------------------------------------------------------------------
 
         if let Some(dir) = try_wolframscript_installation_directory()? {
-            return WolframApp::from_installation_directory(dir);
+            let app = WolframApp::from_installation_directory(dir)?;
+            // If the app doesn't pass the filter, silently ignore it.
+            if !filter.check_app(&app).is_err() {
+                return Ok(app);
+            }
         }
 
         //--------------------------------------------------
         // Look in the operating system applications folder.
         //--------------------------------------------------
 
-        // FIXME: Certain kinds of IO errors will cause this to fail, even though we
-        //        might successfully find an app if we were to continue looking. E.g. if
-        //        reading one particular application fails with a permissions error.
-        let apps: Vec<WolframApp> =
-            crate::find::search_apps_directory().map_err(|io_err: std::io::Error| {
-                Error(format!("error reading applications directory: {}", io_err))
-            })?;
+        let apps: Vec<WolframApp> = discover_with_filter(filter);
 
         if let Some(first) = apps.into_iter().next() {
             return Ok(first);
@@ -210,55 +370,7 @@ impl WolframApp {
             )));
         }
 
-        let file_name = match app_dir.file_name() {
-            Some(file_name) => file_name,
-            None => {
-                return Err(Error(format!(
-                    "specified application location is missing file name component: {}",
-                    app_dir.display()
-                )))
-            },
-        };
-
-        let file_name = match file_name.to_str() {
-            Some(name) => name,
-            None => {
-                return Err(Error(format!(
-                    "specified application location is not encoded in UTF-8: {}",
-                    app_dir.display()
-                )))
-            },
-        };
-
-        if cfg!(target_os = "macos") {
-            // TODO: This is possibly too restrictive?
-            if !file_name.ends_with(".app") {
-                return Err(Error(format!(
-                    "expected application directory name to end with .app: {}",
-                    app_dir.display()
-                )));
-            }
-
-            let product = match WolframProduct::try_from_app_file_name(file_name) {
-                Some(product) => product,
-                None => {
-                    return Err(Error(format!(
-                        "unrecognized Wolfram application name: {}",
-                        file_name
-                    )));
-                },
-            };
-
-            Ok(set_engine_embedded_player(WolframApp {
-                product,
-                app_directory: app_dir,
-                embedded_player: None,
-            })?)
-        } else {
-            Err(platform_unsupported_error(
-                "WolframApp::from_app_directory()",
-            ))
-        }
+        os::from_app_directory(&app_dir)?.set_engine_embedded_player()
     }
 
     /// Construct a `WolframApp` from the
@@ -309,31 +421,33 @@ impl WolframApp {
     // Properties
 
     /// Get the product type of this application.
-    pub fn product(&self) -> WolframProduct {
-        self.product.clone()
+    pub fn app_type(&self) -> WolframAppType {
+        self.app_type.clone()
     }
 
-    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
-    /// installation.
+    /// Get the application version.
     ///
-    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
-    pub fn installation_directory(&self) -> PathBuf {
-        if let Some(ref player) = self.embedded_player {
-            return player.installation_directory();
-        }
-
-        if cfg!(target_os = "macos") {
-            self.app_directory.join("Contents")
-        } else {
-            // FIXME: Fill this in for Windows and Linux
-            panic!(
-                "{}",
-                platform_unsupported_error("WolframApp::from_app_directory()",)
-            )
-        }
+    /// See also [`WolframApp::wolfram_version()`], which returns the version of the
+    /// Wolfram Language bundled with app.
+    pub fn app_version(&self) -> &AppVersion {
+        &self.app_version
     }
 
-    /// Returns the Wolfram Language version number of this Wolfram installation.
+    /// Application directory location.
+    pub fn app_directory(&self) -> PathBuf {
+        self.app_directory.clone()
+    }
+
+    /// Location of the application's main executable.
+    ///
+    /// * **macOS:** `CFBundleCopyExecutableURL()` location.
+    /// * **Windows:** *TODO*
+    /// * **Linux:** *TODO*
+    pub fn app_executable(&self) -> Option<PathBuf> {
+        self.app_executable.clone()
+    }
+
+    /// Returns the version of the Wolfram Language bundled with this application.
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
         // MAJOR.MINOR
         let major_minor = self
@@ -368,6 +482,26 @@ impl WolframApp {
             minor,
             patch,
         })
+    }
+
+    /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
+    /// installation.
+    ///
+    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    pub fn installation_directory(&self) -> PathBuf {
+        if let Some(ref player) = self.embedded_player {
+            return player.installation_directory();
+        }
+
+        if cfg!(target_os = "macos") {
+            self.app_directory.join("Contents")
+        } else {
+            // FIXME: Fill this in for Windows and Linux
+            panic!(
+                "{}",
+                platform_unsupported_error("WolframApp::from_app_directory()",)
+            )
+        }
     }
 
     //----------------------------------
@@ -568,6 +702,10 @@ pub(crate) fn print_platform_unimplemented_warning(op: &str) {
     )
 }
 
+fn warning(message: &str) {
+    eprintln!("warning: {}", message)
+}
+
 fn wolframscript_output(
     wolframscript_command: &PathBuf,
     args: &[String],
@@ -638,45 +776,47 @@ fn try_wolframscript_installation_directory() -> Result<Option<PathBuf>, Error> 
     Ok(Some(PathBuf::from(location)))
 }
 
-// If `app` represents a Wolfram Engine app, set the `embedded_player` field to be the
-// WolframApp representation of the embedded Wolfram Player.app that backs WE.
-fn set_engine_embedded_player(mut app: WolframApp) -> Result<WolframApp, Error> {
-    if app.product() != WolframProduct::Engine {
-        return Ok(app);
-    }
+impl WolframApp {
+    /// If `app` represents a Wolfram Engine app, set the `embedded_player` field to be
+    /// the WolframApp representation of the embedded Wolfram Player.app that backs WE.
+    fn set_engine_embedded_player(mut self) -> Result<Self, Error> {
+        if self.app_type() != WolframAppType::Engine {
+            return Ok(self);
+        }
 
-    let embedded_player_path = if cfg!(target_os = "macos") {
-        app.app_directory
-            .join("Contents")
-            .join("Resources")
-            .join("Wolfram Player.app")
-    } else {
-        // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
-        //       or is that only done on macOS?
-        print_platform_unimplemented_warning(
-            "determine Wolfram Engine path to embedded Wolfram Player",
-        );
+        let embedded_player_path = if cfg!(target_os = "macos") {
+            self.app_directory
+                .join("Contents")
+                .join("Resources")
+                .join("Wolfram Player.app")
+        } else {
+            // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
+            //       or is that only done on macOS?
+            print_platform_unimplemented_warning(
+                "determine Wolfram Engine path to embedded Wolfram Player",
+            );
 
-        // On the hope that returning `app` is more helpful than returning an error here,
-        // do that.
-        return Ok(app);
-    };
+            // On the hope that returning `app` is more helpful than returning an error here,
+            // do that.
+            return Ok(self);
+        };
 
-    // TODO: If this `?` propagates an error
-    let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
-        Ok(player) => player,
-        Err(err) => {
-            return Err(Error(format!(
+        // TODO: If this `?` propagates an error
+        let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
+            Ok(player) => player,
+            Err(err) => {
+                return Err(Error(format!(
                 "Wolfram Engine application does not contain Wolfram Player.app in the \
                 expected location: {}",
                 err
             )))
-        },
-    };
+            },
+        };
 
-    app.embedded_player = Some(Box::new(embedded_player));
+        self.embedded_player = Some(Box::new(embedded_player));
 
-    Ok(app)
+        Ok(self)
+    }
 }
 
 //======================================

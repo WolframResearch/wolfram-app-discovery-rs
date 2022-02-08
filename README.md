@@ -4,6 +4,16 @@
 ![License](https://img.shields.io/crates/l/wolfram-app-discovery.svg)
 [![Documentation](https://docs.rs/wolfram-app-discovery/badge.svg)](https://docs.rs/wolfram-app-discovery)
 
+<h4>
+  <a href="https://docs.rs/wolfram-app-discovery">API Documentation</a>
+  <span> | </span>
+  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/docs/CHANGELOG.md">Changelog</a>
+  <span> | </span>
+  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/CONTRIBUTING.md">Contributing</a>
+</h4>
+
+## About
+
 Find local installations of the Wolfram Language and Wolfram applications.
 
 This crate provides:

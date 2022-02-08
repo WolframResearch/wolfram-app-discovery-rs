@@ -1,6 +1,10 @@
 # wolfram-app-discovery
 
-Discovery local installations of the Wolfram Language and Wolfram applications.
+[![Crates.io](https://img.shields.io/crates/v/wolfram-app-discovery.svg)](https://crates.io/crates/wolfram-app-discovery)
+![License](https://img.shields.io/crates/l/wolfram-app-discovery.svg)
+[![Documentation](https://docs.rs/wolfram-app-discovery/badge.svg)](https://docs.rs/wolfram-app-discovery)
+
+Find local installations of the Wolfram Language and Wolfram applications.
 
 This crate provides:
 

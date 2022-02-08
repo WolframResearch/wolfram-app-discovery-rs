@@ -16,8 +16,6 @@ mod test_readme {
 
 use std::{fmt, path::PathBuf, process, str::FromStr};
 
-use cfg_if::cfg_if;
-
 use crate::config::get_env_var;
 
 
@@ -148,17 +146,12 @@ pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
 //         `as_str(&self) -> &'static str`
 //       method.
 pub fn target_system_id() -> &'static str {
-    cfg_if![
-        if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
-            const SYSTEM_ID: &str = "MacOSX-x86-64";
-        } else {
-            // FIXME: Update this to include common Linux/Windows (and ARM macOS)
-            //        platforms.
-            compile_error!("target_system_id() has not been implemented for the current system")
-        }
-    ];
-
-    SYSTEM_ID
+    match system_id_from_target(env!("TARGET")) {
+        Ok(system_id) => system_id,
+        Err(err) => panic!(
+            "target_system_id() has not been implemented for the current target: {err}"
+        ),
+    }
 }
 
 /// Returns the System ID value that corresponds to the specified Rust
@@ -166,7 +159,17 @@ pub fn target_system_id() -> &'static str {
 /// any.
 pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
     let id = match rust_target {
+        // 64-bit x86
         "x86_64-apple-darwin" => "MacOSX-x86-64",
+        "x86_64-unknown-linux-gnu" => "Linux-x86-64",
+        "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => "Windows-x86-64",
+        // 64-bit ARM
+        "aarch64-apple-darwin" => "MacOSX-ARM64",
+        "aarch64-apple-ios" | "aarch64-apple-ios-sim" => "iOS-ARM64", // iOS
+        "aarch64-linux-android" => "Android",
+
+        // 32-bit ARM (e.g. Raspberry Pi)
+        "armv7-unknown-linux-gnueabihf" => "Linux-ARM",
         _ => {
             return Err(Error(format!(
                 "no System ID value associated with Rust target triple: {}",

@@ -21,7 +21,9 @@ This crate provides:
 * The `wolfram-app-discovery` library, whose API can be used programmatically from Rust code.
 * The `wolfram-app-discovery` executable, which can be used from the command-line.
 
-## API Example
+## Examples
+
+### Using the API
 
 Locate the default Wolfram Language installation on this computer:
 ```rust
@@ -35,7 +37,7 @@ let app = WolframApp::try_default()
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 
-## Command-line Example
+### Using the command-line tool
 
 Locate the default Wolfram Language installation on this computer:
 

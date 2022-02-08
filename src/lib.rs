@@ -650,8 +650,6 @@ impl WolframApp {
         }
 
         if let Some(path) = get_env_var(config::ENV_WSTP_COMPILER_ADDITIONS_DIR) {
-            // // Force a rebuild if the path has changed. This happens when developing WSTP.
-            // println!("cargo:rerun-if-changed={}", path.display());
             return Ok(PathBuf::from(path));
         }
 

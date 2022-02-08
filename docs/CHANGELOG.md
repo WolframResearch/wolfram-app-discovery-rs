@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added badges for the crates.io version/link, license, and docs.rs link.  ([#10])
 
-### Changes
+### Changed
 
 * Changes the README.md summary line to be consistent with the Cargo.toml `description`
   field.  ([#10])
@@ -53,6 +53,8 @@ Initial release of `wolfram-app-discovery`.
     Wolfram Language version:    13.0.0
     $InstallationDirectory:      /Applications/Mathematica.app/Contents
   ```
+
+* Semi-automatically generated [docs/CommandLineHelp.md](https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/v0.1.0/docs/CommandLineHelp.md) documentation.
 
 [#10]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/10
 

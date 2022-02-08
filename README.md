@@ -1,6 +1,6 @@
 # wolfram-app-discovery
 
-Discovery local installations of the Wolfram Language and Wolfram applications.
+Find local installations of the Wolfram Language and Wolfram applications.
 
 This crate provides:
 

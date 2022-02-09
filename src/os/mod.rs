@@ -9,9 +9,13 @@ pub fn discover_all() -> Vec<WolframApp> {
     return macos::discover_all();
 
     #[cfg(not(target_os = "macos"))]
-    return crate::platform_unsupported_error(
-        "discover all installed Wolfram applications",
-    );
+    {
+        crate::print_platform_unimplemented_warning(
+            "discover all installed Wolfram applications",
+        );
+
+        Vec::new()
+    }
 }
 
 pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
@@ -19,5 +23,7 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
     return macos::from_app_directory(dir);
 
     #[cfg(not(target_os = "macos"))]
-    crate::platform_unsupported_error("WolframApp::from_app_directory()")
+    Err(crate::platform_unsupported_error(
+        "WolframApp::from_app_directory()",
+    ))
 }

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] – 2022-02-08
+
 ### Fixed
 
 * Fix compilation failure on non-macOS platforms.  ([#14])
@@ -64,7 +66,8 @@ Initial release of `wolfram-app-discovery`.
 [#14]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/14
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.2...HEAD
 
+[0.1.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/releases/tag/v0.1.0

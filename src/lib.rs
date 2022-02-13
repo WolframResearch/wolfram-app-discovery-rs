@@ -78,9 +78,9 @@ pub struct AppVersion {
     major: u32,
     minor: u32,
     revision: u32,
-
     minor_revision: Option<u32>,
-    build_code: u32,
+
+    build_code: Option<u32>,
 }
 
 /// Wolfram Language version number.
@@ -703,6 +703,7 @@ pub(crate) fn print_platform_unimplemented_warning(op: &str) {
     )
 }
 
+#[cfg_attr(target_os = "windows", allow(dead_code))]
 fn warning(message: &str) {
     eprintln!("warning: {}", message)
 }

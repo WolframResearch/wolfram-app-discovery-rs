@@ -1,6 +1,10 @@
 #[cfg(target_os = "macos")]
 pub mod macos;
 
+#[cfg(target_os = "windows")]
+pub mod windows;
+
+
 use std::path::PathBuf;
 
 use crate::{Error, WolframApp};
@@ -9,7 +13,10 @@ pub fn discover_all() -> Vec<WolframApp> {
     #[cfg(target_os = "macos")]
     return macos::discover_all();
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    return windows::discover_all();
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         crate::print_platform_unimplemented_warning(
             "discover all installed Wolfram applications",

@@ -610,7 +610,7 @@ unsafe fn load_app_from_registry(
 unsafe fn load_app_from_package_info(
     package_info: &PACKAGE_INFO,
     app_builder: &mut WolframAppBuilder,
-) -> HRESULT {
+) {
     app_builder.id = Some(utf16_ptr_to_string(package_info.packageFullName.0));
 
     // PRE_COMMIT
@@ -702,8 +702,6 @@ unsafe fn load_app_from_package_info(
 
     // PRE_COMMIT
     // app_builder.setBuildNumber(ReadCreationIDFileFromLayout(package_info.path));
-
-    return S_OK;
 }
 
 fn merge_user_installed_packages(apps: &mut Vec<WolframApp>) -> HRESULT {

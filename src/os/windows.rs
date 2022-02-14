@@ -608,15 +608,15 @@ unsafe fn load_app_from_registry(
 }
 
 unsafe fn load_app_from_package_info(
-    theInfo: &PACKAGE_INFO,
-    theProduct: &mut WolframAppBuilder,
+    package_info: &PACKAGE_INFO,
+    app_builder: &mut WolframAppBuilder,
 ) -> HRESULT {
-    theProduct.id = Some(utf16_ptr_to_string(theInfo.packageFullName.0));
+    app_builder.id = Some(utf16_ptr_to_string(package_info.packageFullName.0));
 
     // PRE_COMMIT
-    // theProduct.setFullVersion(theInfo.packageId.version.Anonymous.Version);
+    // app_builder.setFullVersion(package_info.packageId.version.Anonymous.Version);
 
-    let package_id_name = utf16_ptr_to_string(theInfo.packageId.name.0);
+    let package_id_name = utf16_ptr_to_string(package_info.packageId.name.0);
 
     {
         // because we cannot get our hands on the display name...
@@ -624,7 +624,7 @@ unsafe fn load_app_from_package_info(
 
         if let Some(iter) = PACKAGE_FAMILY_TO_PRODUCT_NAMES.get(package_id_name.as_str())
         {
-            let app_version = theProduct.app_version.clone().unwrap();
+            let app_version = app_builder.app_version.clone().unwrap();
 
             let iter: &str = iter;
             product_title = iter.to_owned() + " " + &app_version.major().to_string();
@@ -634,18 +634,22 @@ unsafe fn load_app_from_package_info(
             }
         }
 
-        theProduct.app_name = Some(product_title);
+        app_builder.app_name = Some(product_title);
     }
 
     if let Some(app_type) = PACKAGE_FAMILY_TO_APP_TYPE.get(package_id_name.as_str()) {
-        theProduct.app_type = Some(app_type.clone());
+        app_builder.app_type = Some(app_type.clone());
     } else {
         // PRE_COMMIT
-        // theProduct.setProductType(PRODUCT_READER);
+        // app_builder.setProductType(PRODUCT_READER);
     }
 
     let system_id = match APPX_PACKAGE_ARCHITECTURE(
-        theInfo.packageId.processorArchitecture.try_into().unwrap(),
+        package_info
+            .packageId
+            .processorArchitecture
+            .try_into()
+            .unwrap(),
     ) {
         APPX_PACKAGE_ARCHITECTURE_ARM => "Windows-ARM",
         APPX_PACKAGE_ARCHITECTURE_ARM64 => "Windows-ARM64",
@@ -654,12 +658,12 @@ unsafe fn load_app_from_package_info(
         _ => "Unknown",
     };
 
-    theProduct.system_id = Some(String::from(system_id));
+    app_builder.system_id = Some(String::from(system_id));
 
     let mut raw_origin = PackageOrigin::default();
 
     #[allow(non_upper_case_globals)]
-    if GetStagedPackageOrigin(theInfo.packageFullName, &mut raw_origin)
+    if GetStagedPackageOrigin(package_info.packageFullName, &mut raw_origin)
         == ERROR_SUCCESS.0 as i32
     {
         let origin = match raw_origin {
@@ -672,32 +676,32 @@ unsafe fn load_app_from_package_info(
             PackageOrigin_Unknown | _ => Origin::Unknown,
         };
 
-        theProduct.origin = Some(origin);
+        app_builder.origin = Some(origin);
 
         match raw_origin {
             PackageOrigin_Inbox
             | PackageOrigin_DeveloperSigned
             | PackageOrigin_LineOfBusiness
             | PackageOrigin_Store => {
-                theProduct.digitally_signed = Some(true);
+                app_builder.digitally_signed = Some(true);
             },
 
             PackageOrigin_DeveloperUnsigned
             | PackageOrigin_Unknown
             | PackageOrigin_Unsigned
             | _ => {
-                theProduct.digitally_signed = Some(false);
+                app_builder.digitally_signed = Some(false);
             },
         }
     }
 
     // TODO: Set language tag to None in this case?
-    theProduct.language_tag = Some(String::from("Neutral"));
-    theProduct.installation_directory =
-        Some(PathBuf::from(utf16_ptr_to_string(theInfo.path.0)));
+    app_builder.language_tag = Some(String::from("Neutral"));
+    app_builder.installation_directory =
+        Some(PathBuf::from(utf16_ptr_to_string(package_info.path.0)));
 
     // PRE_COMMIT
-    // theProduct.setBuildNumber(ReadCreationIDFileFromLayout(theInfo.path));
+    // app_builder.setBuildNumber(ReadCreationIDFileFromLayout(package_info.path));
 
     return S_OK;
 }
@@ -763,7 +767,7 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
             continue;
         }
 
-        let mut theProduct = WolframAppBuilder::default();
+        let mut app_builder = WolframAppBuilder::default();
 
         let mut pack_length: u32 = 0;
         let mut pack_count: u32 = 0;
@@ -788,13 +792,13 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
             ) == ERROR_SUCCESS.0 as i32
             {
                 // PRE_COMMIT: Is this even close to safe?
-                let info: *const PACKAGE_INFO =
+                let package_info: *const PACKAGE_INFO =
                     pack_info_buffer.as_ptr() as *const PACKAGE_INFO;
 
-                load_app_from_package_info(&*info, &mut theProduct);
+                load_app_from_package_info(&*package_info, &mut app_builder);
 
                 // PRE_COMMIT
-                // UpdateCapsFromApplicationIds(piref, theInfo, theProduct);
+                // UpdateCapsFromApplicationIds(piref, package_info, app_builder);
             }
         }
 
@@ -810,26 +814,26 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
         // 		for (UINT32 i = 0; i < optPackCount; i++)
         // 		{
         // 			PACKAGE_INFO_REFERENCE optpiref = nullptr;
-        // 			PACKAGE_INFO* theInfo = (PACKAGE_INFO*)optPackInfoBuffer;
+        // 			PACKAGE_INFO* package_info = (PACKAGE_INFO*)optPackInfoBuffer;
         // 			Wolfram::Apps::InstalledProduct theOptionalProduct;
 
-        // 			if (OpenPackageInfoByFullName(theInfo->packageFullName, 0, &optpiref) == ERROR_SUCCESS)
+        // 			if (OpenPackageInfoByFullName(package_info->packageFullName, 0, &optpiref) == ERROR_SUCCESS)
         // 			{
-        // 				LoadInstalledProductInfoFromPackageInfo(theInfo, theOptionalProduct);
-        // 				UpdateCapsFromApplicationIds(optpiref, theInfo, theOptionalProduct);
+        // 				LoadInstalledProductInfoFromPackageInfo(package_info, theOptionalProduct);
+        // 				UpdateCapsFromApplicationIds(optpiref, package_info, theOptionalProduct);
         // 				cpi(optpiref);
         // 			}
 
         // 			theOptionalProducts.push(theOptionalProduct);
         // 		}
 
-        // 		theProduct.setOptionalPackages(theOptionalProducts);
+        // 		app_builder.setOptionalPackages(theOptionalProducts);
         // 	}
 
         // 	free(optPackInfoBuffer);
         // }
 
-        apps.push(theProduct.finish().expect("PRE_COMMIT"));
+        apps.push(app_builder.finish().expect("PRE_COMMIT"));
 
         ClosePackageInfo(piref);
     }

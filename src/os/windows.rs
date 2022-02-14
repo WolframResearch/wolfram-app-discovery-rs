@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap, ffi::c_void, mem::size_of, path::PathBuf,
+    collections::HashMap, ffi::c_void, path::PathBuf,
     ptr::null_mut as nullptr, str::FromStr,
 };
 
@@ -316,8 +316,7 @@ unsafe fn load_app_from_registry(
         return Err(());
     }
 
-    // PRE_COMMIT
-    // app_builder.setProductType(product);
+    app_builder.app_type = WolframAppType::from_windows_product_type(product);
 
     let build_key = buildKey;
 
@@ -833,6 +832,41 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
     merge_user_installed_packages(&mut installations);
 
     return installations;
+}
+
+impl WolframAppType {
+    /// Construct a [`WolframAppType`] from the Windows registry `"ProductType"` field
+    /// associated with an application.
+    #[rustfmt::skip]
+    fn from_windows_product_type(id: u32) -> Option<Self> {
+        use WolframAppType::*;
+
+        // const UNIVERSAL: u32        = 0xFFFFFFFF;
+        const MATHEMATICA: u32      = 1 << 28; //(0x10000000)
+        const DESKTOP: u32          = 1 << 27; //(0x08000000)
+        const PROGRAMMING_LAB: u32  = 1 << 26; //(0x04000000)
+        const FINANCE_PLATFORM: u32 = 1 << 25; //(0x02000000)
+        const ALPHA_NB_EDITION: u32 = 1 << 24; //(0x01000000)
+        const ENGINE: u32           = 1 << 15; //(0x00008000)
+        const PLAYER_PRO: u32       = 1 << 14; //(0x00004000)
+        const PLAYER: u32           = 1 << 1;  //(0x00000002)
+        // const READER: u32           = 1;
+        // const NONE: u32             = 0;
+
+        let app_type = match id {
+            MATHEMATICA => Mathematica,
+            DESKTOP => Desktop,
+            PROGRAMMING_LAB => ProgrammingLab,
+            FINANCE_PLATFORM => FinancePlatform,
+            ALPHA_NB_EDITION => WolframAlphaNotebookEdition,
+            ENGINE => Engine,
+            PLAYER_PRO => PlayerPro,
+            PLAYER => Player,
+            _ => return None,
+        };
+
+        Some(app_type)
+    }
 }
 
 //======================================

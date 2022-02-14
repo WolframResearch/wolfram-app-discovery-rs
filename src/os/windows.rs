@@ -240,26 +240,6 @@ fn win_host_system_id() -> String {
     String::from(system_id)
 }
 
-unsafe fn utf16_ptr_to_string(str: *const u16) -> String {
-    if str.is_null() {
-        return String::new();
-    }
-
-    // Find the offset of the NULL byte.
-    let len: usize = {
-        let mut end = str;
-        while *end != 0 {
-            end = end.add(1);
-        }
-
-        usize::try_from(end.offset_from(str)).unwrap()
-    };
-
-    let slice: &[u16] = std::slice::from_raw_parts(str, len);
-
-    String::from_utf16(slice).expect("unable to convert string to UTF-16")
-}
-
 unsafe fn load_app_from_registry(
     buildKey: HKEY,
     system_id: &str,
@@ -872,6 +852,26 @@ impl WolframAppType {
 //======================================
 // Utilities
 //======================================
+
+unsafe fn utf16_ptr_to_string(str: *const u16) -> String {
+    if str.is_null() {
+        return String::new();
+    }
+
+    // Find the offset of the NULL byte.
+    let len: usize = {
+        let mut end = str;
+        while *end != 0 {
+            end = end.add(1);
+        }
+
+        usize::try_from(end.offset_from(str)).unwrap()
+    };
+
+    let slice: &[u16] = std::slice::from_raw_parts(str, len);
+
+    String::from_utf16(slice).expect("unable to convert string to UTF-16")
+}
 
 unsafe fn reg_get_value_string(key: HKEY, name: &str) -> Option<String> {
     let mut size_in_bytes: DWORD = 0;

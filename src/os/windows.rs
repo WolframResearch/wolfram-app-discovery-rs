@@ -7,7 +7,7 @@ use windows::{
     core::HRESULT,
     Win32::{
         Foundation::{
-            BOOL, ERROR_INSUFFICIENT_BUFFER, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS, E_FAIL,
+            BOOL, ERROR_INSUFFICIENT_BUFFER, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS,
             MAX_PATH, PWSTR, S_OK,
         },
         Storage::{
@@ -242,11 +242,6 @@ fn win_host_system_id() -> String {
     String::from(system_id)
 }
 
-#[allow(non_snake_case)]
-fn SUCCEEDED(hr: HRESULT) -> bool {
-    hr.0 >= 0
-}
-
 unsafe fn utf16_ptr_to_string(str: *const u16) -> String {
     if str.is_null() {
         return String::new();
@@ -269,9 +264,9 @@ unsafe fn utf16_ptr_to_string(str: *const u16) -> String {
 
 unsafe fn load_app_from_registry(
     buildKey: HKEY,
-    theInstallation: &mut WolframAppBuilder,
+    mut theInstallation: WolframAppBuilder,
     build_number: *const WCHAR,
-) -> HRESULT {
+) -> Result<WolframApp, ()> {
     let is_wow_proc = win_is_wow_process();
 
     let mut enabled: DWORD = 0;
@@ -282,7 +277,7 @@ unsafe fn load_app_from_registry(
     let this_build: DWORD = parse_build_number(build_number);
 
     if this_build == 0 {
-        return E_FAIL;
+        return Err(());
     }
 
     // PRE_COMMIT
@@ -299,7 +294,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) != ERROR_SUCCESS
     {
-        return E_FAIL;
+        return Err(());
     }
 
     // PRE_COMMIT:
@@ -316,7 +311,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) != ERROR_SUCCESS
     {
-        return E_FAIL;
+        return Err(());
     }
 
     // PRE_COMMIT
@@ -347,7 +342,7 @@ unsafe fn load_app_from_registry(
         ) != ERROR_SUCCESS
         {
             CoTaskMemFree(temp as *mut c_void);
-            return E_FAIL;
+            return Err(());
         }
 
         theInstallation.id = Some(utf16_ptr_to_string(temp));
@@ -382,7 +377,7 @@ unsafe fn load_app_from_registry(
         ) != ERROR_SUCCESS
         {
             CoTaskMemFree(temp as *mut c_void);
-            return E_FAIL;
+            return Err(());
         }
 
         theInstallation.installation_directory =
@@ -416,7 +411,7 @@ unsafe fn load_app_from_registry(
         ) != ERROR_SUCCESS
         {
             CoTaskMemFree(temp as *mut c_void);
-            return E_FAIL;
+            return Err(());
         }
 
         let exec_path: PathBuf = PathBuf::from(utf16_ptr_to_string(temp));
@@ -445,7 +440,7 @@ unsafe fn load_app_from_registry(
         };
 
         if !has_exec_path && !has_install_dir {
-            return E_FAIL;
+            return Err(());
         }
     }
 
@@ -475,7 +470,7 @@ unsafe fn load_app_from_registry(
         ) != ERROR_SUCCESS
         {
             CoTaskMemFree(temp as *mut c_void);
-            return E_FAIL;
+            return Err(());
         }
 
         theInstallation.language_tag = Some(utf16_ptr_to_string(temp));
@@ -496,7 +491,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) != ERROR_SUCCESS
     {
-        return E_FAIL;
+        return Err(());
     }
 
     let temp: *mut WCHAR = CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
@@ -512,7 +507,7 @@ unsafe fn load_app_from_registry(
     ) != ERROR_SUCCESS
     {
         CoTaskMemFree(temp as *mut c_void);
-        return E_FAIL;
+        return Err(());
     }
 
     theInstallation.app_name = Some(utf16_ptr_to_string(temp));
@@ -602,10 +597,10 @@ unsafe fn load_app_from_registry(
     }
 
     if theInstallation.app_version.is_none() {
-        return E_FAIL;
+        return Err(());
     }
 
-    return S_OK;
+    return theInstallation.finish();
 }
 
 unsafe fn load_app_from_package_info(
@@ -968,12 +963,9 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
 
                     the_info.system_id = Some(String::from(system_id));
 
-                    if SUCCEEDED(load_app_from_registry(
-                        build_key,
-                        &mut the_info,
-                        build_number.as_ptr(),
-                    )) {
-                        let app = the_info.finish().expect("PRE_COMMIT");
+                    if let Ok(app) =
+                        load_app_from_registry(build_key, the_info, build_number.as_ptr())
+                    {
                         installations.push(app);
                     }
 

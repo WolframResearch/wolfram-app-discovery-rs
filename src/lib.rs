@@ -249,7 +249,7 @@ impl AppVersion {
 
     #[allow(missing_docs)]
     pub fn build_code(&self) -> u32 {
-        self.build_code
+        self.build_code.expect("PRE_COMMIT")
     }
 }
 

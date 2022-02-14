@@ -169,7 +169,10 @@ static PACKAGE_FAMILY_TO_PRODUCT_NAMES: Lazy<HashMap<&str, &str>> = Lazy::new(||
 
 #[rustfmt::skip]
 static PACKAGE_FAMILY_TO_APP_TYPE: Lazy<HashMap<&str, WolframAppType>> = Lazy::new(|| {
-    // PRE_COMMIT: How should documentation installations be handled?
+    // FIXME: How should documentation installations be handled? Modeling them as
+    //        independent `WolframApp` instances doesn't seem quite optimal, since
+    //        nominally most Wolfram apps provide a copy of the Wolfram Language
+    //        runtime, which documentation does not.
     HashMap::from_iter([
         ("Wolfram.Mathematica",                    WolframAppType::Mathematica),
         // ("Wolfram.Mathematica.Documentation",      PRODUCT_MATHEMATICA),

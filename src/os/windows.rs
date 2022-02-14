@@ -3,42 +3,39 @@ use std::{
     str::FromStr,
 };
 
-use windows::{
-    core::HRESULT,
-    Win32::{
-        Foundation::{
-            BOOL, ERROR_INSUFFICIENT_BUFFER, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS,
-            MAX_PATH, PWSTR, S_OK,
+use windows::Win32::{
+    Foundation::{
+        BOOL, ERROR_INSUFFICIENT_BUFFER, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS, MAX_PATH,
+        PWSTR,
+    },
+    Storage::{
+        FileSystem::{Wow64DisableWow64FsRedirection, Wow64RevertWow64FsRedirection},
+        Packaging::Appx::{
+            ClosePackageInfo, GetPackageInfo, GetPackagesByPackageFamily,
+            GetStagedPackageOrigin, OpenPackageInfoByFullName, PackageOrigin,
+            PackageOrigin_DeveloperSigned, PackageOrigin_DeveloperUnsigned,
+            PackageOrigin_Inbox, PackageOrigin_LineOfBusiness, PackageOrigin_Store,
+            PackageOrigin_Unknown, PackageOrigin_Unsigned, APPX_PACKAGE_ARCHITECTURE,
+            APPX_PACKAGE_ARCHITECTURE_ARM, APPX_PACKAGE_ARCHITECTURE_ARM64,
+            APPX_PACKAGE_ARCHITECTURE_X64, APPX_PACKAGE_ARCHITECTURE_X86, PACKAGE_INFO,
+            PACKAGE_INFORMATION_FULL, _PACKAGE_INFO_REFERENCE,
         },
-        Storage::{
-            FileSystem::{Wow64DisableWow64FsRedirection, Wow64RevertWow64FsRedirection},
-            Packaging::Appx::{
-                ClosePackageInfo, GetPackageInfo, GetPackagesByPackageFamily,
-                GetStagedPackageOrigin, OpenPackageInfoByFullName, PackageOrigin,
-                PackageOrigin_DeveloperSigned, PackageOrigin_DeveloperUnsigned,
-                PackageOrigin_Inbox, PackageOrigin_LineOfBusiness, PackageOrigin_Store,
-                PackageOrigin_Unknown, PackageOrigin_Unsigned, APPX_PACKAGE_ARCHITECTURE,
-                APPX_PACKAGE_ARCHITECTURE_ARM, APPX_PACKAGE_ARCHITECTURE_ARM64,
-                APPX_PACKAGE_ARCHITECTURE_X64, APPX_PACKAGE_ARCHITECTURE_X86,
-                PACKAGE_INFO, PACKAGE_INFORMATION_FULL, _PACKAGE_INFO_REFERENCE,
-            },
+    },
+    System::{
+        Com::{CoTaskMemAlloc, CoTaskMemFree},
+        Diagnostics::Debug::{
+            PROCESSOR_ARCHITECTURE, PROCESSOR_ARCHITECTURE_AMD64,
+            PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_INTEL,
         },
-        System::{
-            Com::{CoTaskMemAlloc, CoTaskMemFree},
-            Diagnostics::Debug::{
-                PROCESSOR_ARCHITECTURE, PROCESSOR_ARCHITECTURE_AMD64,
-                PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_INTEL,
-            },
-            Registry::{
-                RegCloseKey, RegEnumKeyW, RegGetValueW, RegOpenKeyExA, RegOpenKeyExW,
-                RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ,
-                KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_SAM_FLAGS, RRF_RT_REG_DWORD,
-                RRF_RT_REG_SZ,
-            },
-            SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO},
-            SystemServices::PROCESSOR_ARCHITECTURE_ARM64,
-            Threading::{GetCurrentProcess, IsWow64Process},
+        Registry::{
+            RegCloseKey, RegEnumKeyW, RegGetValueW, RegOpenKeyExA, RegOpenKeyExW,
+            RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ,
+            KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_SAM_FLAGS, RRF_RT_REG_DWORD,
+            RRF_RT_REG_SZ,
         },
+        SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO},
+        SystemServices::PROCESSOR_ARCHITECTURE_ARM64,
+        Threading::{GetCurrentProcess, IsWow64Process},
     },
 };
 
@@ -704,19 +701,14 @@ unsafe fn load_app_from_package_info(
     // app_builder.setBuildNumber(ReadCreationIDFileFromLayout(package_info.path));
 }
 
-fn merge_user_installed_packages(apps: &mut Vec<WolframApp>) -> HRESULT {
+fn merge_user_installed_packages(apps: &mut Vec<WolframApp>) {
     for product in PRODUCTS {
-        let product_apps = match unsafe { get_user_packages(product) } {
-            Ok(apps) => apps,
-            Err(err) => return err,
-        };
+        let product_apps = unsafe { get_user_packages(product) };
         apps.extend(product_apps);
     }
-
-    return S_OK;
 }
 
-unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
+unsafe fn get_user_packages(product: &str) -> Vec<WolframApp> {
     let mut count: u32 = 0;
     let mut buffer_length: u32 = 0;
 
@@ -729,7 +721,7 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
     );
 
     if count == 0 || error != ERROR_INSUFFICIENT_BUFFER.0 as i32 {
-        return Ok(vec![]);
+        return vec![];
     }
 
     // let buffer: PWSTR = malloc(size_of::<WCHAR>() * buffer_length) as *mut WCHAR;
@@ -749,7 +741,7 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
         PWSTR(buffer),
     ) != ERROR_SUCCESS.0 as i32
     {
-        return Ok(vec![]);
+        return vec![];
     }
 
     package_full_names.set_len(usize::try_from(count).unwrap());
@@ -836,7 +828,7 @@ unsafe fn get_user_packages(product: &str) -> Result<Vec<WolframApp>, HRESULT> {
         ClosePackageInfo(piref);
     }
 
-    Ok(apps)
+    apps
 }
 
 

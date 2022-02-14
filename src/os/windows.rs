@@ -1,6 +1,6 @@
 use std::{
-    collections::HashMap, ffi::c_void, path::PathBuf,
-    ptr::null_mut as nullptr, str::FromStr,
+    collections::HashMap, ffi::c_void, path::PathBuf, ptr::null_mut as nullptr,
+    str::FromStr,
 };
 
 use windows::Win32::{
@@ -38,8 +38,8 @@ use windows::Win32::{
     },
 };
 
-// use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 use crate::{AppVersion, Error, WolframApp, WolframAppType};
 
@@ -186,22 +186,19 @@ static PACKAGE_FAMILY_TO_APP_TYPE: Lazy<HashMap<&str, WolframAppType>> = Lazy::n
     ])
 });
 
-fn parse_build_number(build_number: *const WCHAR) -> DWORD {
-    todo!("PRE_COMMIT: Parse build number &str, return Result");
-    // if build_number.is_null() || wcslen(buildNumber) == 0 {
-    // 	return 0;
-    // }
+fn parse_build_number(build_number: &str) -> Option<u32> {
+    let regex = Regex::new(
+        "^[a-zA-Z]-[a-zA-Z0-9]+-[a-zA-Z]+(?:\\.[-a-zA-Z]+)?\\.[0-9]+\\.[0-9]+\\.[0-9]+\\.([0-9]+)$"
+        //                                                                  build number ^^^^^^^^
+    ).unwrap();
 
-    // let regex = Regex::new(
-    //     "^[a-zA-Z]-[a-zA-Z0-9]+-[a-zA-Z]+(?:\\.[-a-zA-Z]+)?\\.[0-9]+\\.[0-9]+\\.[0-9]+\\.([0-9]+)$"
-    // ).unwrap();
-
-    // std::wcmatch mr;
-
-    // if (std::regex_match(buildNumber, mr, rx) && mr[1].matched)
-    // 	return _wtol(mr[1].first);
-
-    // return _wtol(buildNumber);
+    if let Some(captures) = dbg!(regex.captures(&build_number)) {
+        return DWORD::from_str(&captures[1]).ok();
+    } else if let Ok(number) = DWORD::from_str(&build_number) {
+        return Some(number);
+    } else {
+        None
+    }
 }
 
 fn win_is_wow_process() -> bool {
@@ -256,7 +253,12 @@ unsafe fn load_app_from_registry(
     let mut caps: DWORD = 0;
     let mut size: DWORD;
 
-    let this_build: DWORD = parse_build_number(build_number);
+    let build_number = utf16_ptr_to_string(build_number);
+
+    let this_build: DWORD = match parse_build_number(&build_number) {
+        Some(build_number) => build_number,
+        None => return Err(()),
+    };
 
     if this_build == 0 {
         return Err(());

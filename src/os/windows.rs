@@ -56,7 +56,7 @@ pub fn discover_all() -> Vec<WolframApp> {
 //======================================
 
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct WolframAppBuilder {
     app_name: Option<String>,
     app_version: Option<AppVersion>,
@@ -79,6 +79,7 @@ struct WolframAppBuilder {
 }
 
 #[non_exhaustive]
+#[derive(Debug)]
 enum Origin {
     Sideloaded,
     Store,

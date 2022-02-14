@@ -264,9 +264,13 @@ unsafe fn utf16_ptr_to_string(str: *const u16) -> String {
 
 unsafe fn load_app_from_registry(
     buildKey: HKEY,
-    mut theInstallation: WolframAppBuilder,
+    system_id: &str,
     build_number: *const WCHAR,
 ) -> Result<WolframApp, ()> {
+    let mut theInstallation: WolframAppBuilder = Default::default();
+
+    theInstallation.system_id = Some(String::from(system_id));
+
     let is_wow_proc = win_is_wow_process();
 
     let mut enabled: DWORD = 0;
@@ -959,13 +963,11 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
                     &mut build_key,
                 ) == ERROR_SUCCESS
                 {
-                    let mut the_info: WolframAppBuilder = Default::default();
-
-                    the_info.system_id = Some(String::from(system_id));
-
-                    if let Ok(app) =
-                        load_app_from_registry(build_key, the_info, build_number.as_ptr())
-                    {
+                    if let Ok(app) = load_app_from_registry(
+                        build_key,
+                        system_id,
+                        build_number.as_ptr(),
+                    ) {
                         installations.push(app);
                     }
 

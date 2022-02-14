@@ -319,94 +319,18 @@ unsafe fn load_app_from_registry(
     // PRE_COMMIT
     // app_builder.setProductType(product);
 
-    size = 0;
+    let build_key = buildKey;
 
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "CLSID",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) == ERROR_SUCCESS
-    {
-        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
-
-        if RegGetValueW(
-            buildKey,
-            PWSTR(nullptr()),
-            "CLSID",
-            RRF_RT_REG_SZ,
-            nullptr(),
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-        ) != ERROR_SUCCESS
-        {
-            return Err(());
-        }
-
-        app_builder.id = Some(utf16_ptr_to_string(buffer.as_ptr()));
+    if let Some(id) = reg_get_value_string(build_key, "CLSID") {
+        app_builder.id = Some(id);
     }
 
-    size = 0;
-
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "InstallationDirectory",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) == ERROR_SUCCESS
-    {
-        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
-
-        if RegGetValueW(
-            buildKey,
-            PWSTR(nullptr()),
-            "InstallationDirectory",
-            RRF_RT_REG_SZ,
-            nullptr(),
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-        ) != ERROR_SUCCESS
-        {
-            return Err(());
-        }
-
-        app_builder.installation_directory =
-            Some(PathBuf::from(dbg!(utf16_ptr_to_string(buffer.as_ptr()))));
+    if let Some(dir) = reg_get_value_string(build_key, "InstallationDirectory") {
+        app_builder.installation_directory = Some(PathBuf::from(dir));
     }
 
-    size = 0;
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "ExecutablePath",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) == ERROR_SUCCESS
-    {
-        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
-
-        if RegGetValueW(
-            buildKey,
-            PWSTR(nullptr()),
-            "ExecutablePath",
-            RRF_RT_REG_SZ,
-            nullptr(),
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-        ) != ERROR_SUCCESS
-        {
-            return Err(());
-        }
-
-        let exec_path: PathBuf = PathBuf::from(utf16_ptr_to_string(buffer.as_ptr()));
+    if let Some(exec_path) = reg_get_value_string(build_key, "ExecutablePath") {
+        let exec_path = PathBuf::from(exec_path);
 
         app_builder.executable_path = Some(exec_path.clone());
 
@@ -434,100 +358,23 @@ unsafe fn load_app_from_registry(
         }
     }
 
+    app_builder.language_tag = Some(
+        reg_get_value_string(build_key, "Language").unwrap_or_else(|| String::from("en")),
+    );
 
-    size = 0;
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "Language",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) == ERROR_SUCCESS
-    {
-        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
+    app_builder.app_name = match reg_get_value_string(build_key, "ProductName") {
+        name @ Some(_) => name,
+        None => return Err(()),
+    };
 
-        if RegGetValueW(
-            buildKey,
-            PWSTR(nullptr()),
-            "Language",
-            RRF_RT_REG_SZ,
-            nullptr(),
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-        ) != ERROR_SUCCESS
-        {
-            return Err(());
-        }
-
-        app_builder.language_tag = Some(utf16_ptr_to_string(buffer.as_ptr()));
-    } else {
-        app_builder.language_tag = Some(String::from("en"));
-    }
-
-    size = 0;
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "ProductName",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) != ERROR_SUCCESS
-    {
-        return Err(());
-    }
-
-    let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
-
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "ProductName",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        buffer.as_mut_ptr() as *mut c_void,
-        &mut size,
-    ) != ERROR_SUCCESS
-    {
-        return Err(());
-    }
-
-    app_builder.app_name = Some(utf16_ptr_to_string(buffer.as_ptr()));
-    drop(buffer);
-
-    if RegGetValueW(
-        buildKey,
-        PWSTR(nullptr()),
-        "ProductVersion",
-        RRF_RT_REG_SZ,
-        nullptr(),
-        nullptr(),
-        &mut size,
-    ) == ERROR_SUCCESS
-    {
-        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
-
-        if RegGetValueW(
-            buildKey,
-            PWSTR(nullptr()),
-            "ProductVersion",
-            RRF_RT_REG_SZ,
-            nullptr(),
-            buffer.as_mut_ptr() as *mut c_void,
-            &mut size,
-        ) == ERROR_SUCCESS
-        {
-            match AppVersion::parse_windows(&utf16_ptr_to_string(buffer.as_ptr())) {
-                Ok(version) => {
-                    app_builder.app_version = Some(version);
-                },
-                Err(_) => {
-                    // TODO: Generate an error here?
-                },
-            }
+    if let Some(version_string) = reg_get_value_string(build_key, "ProductVersion") {
+        match AppVersion::parse_windows(&version_string) {
+            Ok(version) => {
+                app_builder.app_version = Some(version);
+            },
+            Err(_) => {
+                // TODO: Generate an error here?
+            },
         }
     }
 
@@ -986,4 +833,44 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
     merge_user_installed_packages(&mut installations);
 
     return installations;
+}
+
+//======================================
+// Utilities
+//======================================
+
+unsafe fn reg_get_value_string(key: HKEY, name: &str) -> Option<String> {
+    let mut size_in_bytes: DWORD = 0;
+
+    if RegGetValueW(
+        key,
+        PWSTR(nullptr()),
+        name,
+        RRF_RT_REG_SZ,
+        nullptr(),
+        nullptr(),
+        &mut size_in_bytes,
+    ) != ERROR_SUCCESS
+    {
+        return None;
+    }
+
+    let size_in_elements = size_in_bytes / (std::mem::size_of::<WCHAR>() as DWORD);
+
+    let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size_in_elements).unwrap()];
+
+    if RegGetValueW(
+        key,
+        PWSTR(nullptr()),
+        name,
+        RRF_RT_REG_SZ,
+        nullptr(),
+        buffer.as_mut_ptr() as *mut c_void,
+        &mut size_in_bytes,
+    ) != ERROR_SUCCESS
+    {
+        return None;
+    }
+
+    Some(utf16_ptr_to_string(buffer.as_ptr()))
 }

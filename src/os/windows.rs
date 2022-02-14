@@ -267,9 +267,9 @@ unsafe fn load_app_from_registry(
     system_id: &str,
     build_number: *const WCHAR,
 ) -> Result<WolframApp, ()> {
-    let mut theInstallation: WolframAppBuilder = Default::default();
+    let mut app_builder: WolframAppBuilder = Default::default();
 
-    theInstallation.system_id = Some(String::from(system_id));
+    app_builder.system_id = Some(String::from(system_id));
 
     let is_wow_proc = win_is_wow_process();
 
@@ -285,7 +285,7 @@ unsafe fn load_app_from_registry(
     }
 
     // PRE_COMMIT
-    // theInstallation.setBuildNumber(this_build);
+    // app_builder.setBuildNumber(this_build);
 
     size = std::mem::size_of::<DWORD>() as u32;
     if RegGetValueW(
@@ -302,7 +302,7 @@ unsafe fn load_app_from_registry(
     }
 
     // PRE_COMMIT:
-    // theInstallation.setCaps(caps);
+    // app_builder.setCaps(caps);
 
     size = std::mem::size_of::<DWORD>() as u32;
     if RegGetValueW(
@@ -319,7 +319,7 @@ unsafe fn load_app_from_registry(
     }
 
     // PRE_COMMIT
-    // theInstallation.setProductType(product);
+    // app_builder.setProductType(product);
 
     if RegGetValueW(
         buildKey,
@@ -349,7 +349,7 @@ unsafe fn load_app_from_registry(
             return Err(());
         }
 
-        theInstallation.id = Some(utf16_ptr_to_string(temp));
+        app_builder.id = Some(utf16_ptr_to_string(temp));
 
         CoTaskMemFree(temp as *mut c_void);
     }
@@ -384,7 +384,7 @@ unsafe fn load_app_from_registry(
             return Err(());
         }
 
-        theInstallation.installation_directory =
+        app_builder.installation_directory =
             Some(PathBuf::from(utf16_ptr_to_string(temp)));
         CoTaskMemFree(temp as *mut c_void);
     }
@@ -420,25 +420,25 @@ unsafe fn load_app_from_registry(
 
         let exec_path: PathBuf = PathBuf::from(utf16_ptr_to_string(temp));
 
-        theInstallation.executable_path = Some(exec_path.clone());
+        app_builder.executable_path = Some(exec_path.clone());
 
         // If `installation_directory` is not set but `executable_path` is, derive
         // the installation directory from the executable path.
-        if theInstallation.installation_directory.is_none() && exec_path.exists() {
+        if app_builder.installation_directory.is_none() && exec_path.exists() {
             let install_dir = exec_path.parent().unwrap().to_path_buf();
-            theInstallation.installation_directory = Some(install_dir);
+            app_builder.installation_directory = Some(install_dir);
         }
 
         CoTaskMemFree(temp as *mut c_void);
     }
 
     {
-        let has_exec_path = match theInstallation.executable_path {
+        let has_exec_path = match app_builder.executable_path {
             None => false,
             Some(ref path) => path.exists(),
         };
 
-        let has_install_dir = match theInstallation.installation_directory {
+        let has_install_dir = match app_builder.installation_directory {
             None => false,
             Some(ref path) => path.exists(),
         };
@@ -477,11 +477,11 @@ unsafe fn load_app_from_registry(
             return Err(());
         }
 
-        theInstallation.language_tag = Some(utf16_ptr_to_string(temp));
+        app_builder.language_tag = Some(utf16_ptr_to_string(temp));
 
         CoTaskMemFree(temp as *mut c_void);
     } else {
-        theInstallation.language_tag = Some(String::from("en"));
+        app_builder.language_tag = Some(String::from("en"));
     }
 
     size = 0;
@@ -514,7 +514,7 @@ unsafe fn load_app_from_registry(
         return Err(());
     }
 
-    theInstallation.app_name = Some(utf16_ptr_to_string(temp));
+    app_builder.app_name = Some(utf16_ptr_to_string(temp));
 
     CoTaskMemFree(temp as *mut c_void);
 
@@ -543,7 +543,7 @@ unsafe fn load_app_from_registry(
         {
             match AppVersion::parse_windows(&utf16_ptr_to_string(temp)) {
                 Ok(version) => {
-                    theInstallation.app_version = Some(version);
+                    app_builder.app_version = Some(version);
                 },
                 Err(_) => {
                     // TODO: Generate an error here?
@@ -566,7 +566,7 @@ unsafe fn load_app_from_registry(
     {
         let [major, minor, revision, minor_revision] = enabled.to_be_bytes();
 
-        theInstallation.app_version = Some(AppVersion {
+        app_builder.app_version = Some(AppVersion {
             major: u32::from(major),
             minor: u32::from(minor),
             revision: u32::from(revision),
@@ -576,8 +576,8 @@ unsafe fn load_app_from_registry(
         });
     }
 
-    if !theInstallation.app_version.is_some() {
-        let version_file: PathBuf = theInstallation
+    if !app_builder.app_version.is_some() {
+        let version_file: PathBuf = app_builder
             .installation_directory
             .clone()
             .unwrap()
@@ -595,16 +595,16 @@ unsafe fn load_app_from_registry(
 
         if let Ok(version_string) = result {
             if let Ok(app_version) = AppVersion::parse_windows(&version_string) {
-                theInstallation.app_version = Some(app_version);
+                app_builder.app_version = Some(app_version);
             }
         }
     }
 
-    if theInstallation.app_version.is_none() {
+    if app_builder.app_version.is_none() {
         return Err(());
     }
 
-    return theInstallation.finish();
+    return app_builder.finish();
 }
 
 unsafe fn load_app_from_package_info(

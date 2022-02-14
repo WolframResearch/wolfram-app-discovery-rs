@@ -1,6 +1,6 @@
 use std::{
-    collections::HashMap, ffi::c_void, path::PathBuf, ptr::null_mut as nullptr,
-    str::FromStr,
+    collections::HashMap, ffi::c_void, mem::size_of, path::PathBuf,
+    ptr::null_mut as nullptr, str::FromStr,
 };
 
 use windows::Win32::{
@@ -22,7 +22,6 @@ use windows::Win32::{
         },
     },
     System::{
-        Com::{CoTaskMemAlloc, CoTaskMemFree},
         Diagnostics::Debug::{
             PROCESSOR_ARCHITECTURE, PROCESSOR_ARCHITECTURE_AMD64,
             PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_INTEL,
@@ -218,6 +217,7 @@ fn win_is_wow_process() -> bool {
         return is_wow.as_bool();
     }
 }
+
 fn win_host_system_id() -> String {
     let PROCESSOR_ARCHITECTURE(arch) = unsafe {
         let mut info: SYSTEM_INFO = SYSTEM_INFO::default();
@@ -318,6 +318,8 @@ unsafe fn load_app_from_registry(
     // PRE_COMMIT
     // app_builder.setProductType(product);
 
+    size = 0;
+
     if RegGetValueW(
         buildKey,
         PWSTR(nullptr()),
@@ -328,9 +330,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) == ERROR_SUCCESS
     {
-        let temp: *mut WCHAR =
-            CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
-        std::ptr::write_bytes(temp, 0, usize::try_from(size).unwrap());
+        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
         if RegGetValueW(
             buildKey,
@@ -338,17 +338,14 @@ unsafe fn load_app_from_registry(
             "CLSID",
             RRF_RT_REG_SZ,
             nullptr(),
-            temp as *mut c_void,
+            buffer.as_mut_ptr() as *mut c_void,
             &mut size,
         ) != ERROR_SUCCESS
         {
-            CoTaskMemFree(temp as *mut c_void);
             return Err(());
         }
 
-        app_builder.id = Some(utf16_ptr_to_string(temp));
-
-        CoTaskMemFree(temp as *mut c_void);
+        app_builder.id = Some(utf16_ptr_to_string(buffer.as_ptr()));
     }
 
     size = 0;
@@ -363,9 +360,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) == ERROR_SUCCESS
     {
-        let temp: *mut WCHAR =
-            CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
-        std::ptr::write_bytes(temp, 0, usize::try_from(size).unwrap());
+        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
         if RegGetValueW(
             buildKey,
@@ -373,17 +368,15 @@ unsafe fn load_app_from_registry(
             "InstallationDirectory",
             RRF_RT_REG_SZ,
             nullptr(),
-            temp as *mut c_void,
+            buffer.as_mut_ptr() as *mut c_void,
             &mut size,
         ) != ERROR_SUCCESS
         {
-            CoTaskMemFree(temp as *mut c_void);
             return Err(());
         }
 
         app_builder.installation_directory =
-            Some(PathBuf::from(utf16_ptr_to_string(temp)));
-        CoTaskMemFree(temp as *mut c_void);
+            Some(PathBuf::from(dbg!(utf16_ptr_to_string(buffer.as_ptr()))));
     }
 
     size = 0;
@@ -397,9 +390,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) == ERROR_SUCCESS
     {
-        let temp: *mut WCHAR =
-            CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
-        std::ptr::write_bytes(temp, 0, usize::try_from(size).unwrap());
+        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
         if RegGetValueW(
             buildKey,
@@ -407,15 +398,14 @@ unsafe fn load_app_from_registry(
             "ExecutablePath",
             RRF_RT_REG_SZ,
             nullptr(),
-            temp as *mut c_void,
+            buffer.as_mut_ptr() as *mut c_void,
             &mut size,
         ) != ERROR_SUCCESS
         {
-            CoTaskMemFree(temp as *mut c_void);
             return Err(());
         }
 
-        let exec_path: PathBuf = PathBuf::from(utf16_ptr_to_string(temp));
+        let exec_path: PathBuf = PathBuf::from(utf16_ptr_to_string(buffer.as_ptr()));
 
         app_builder.executable_path = Some(exec_path.clone());
 
@@ -425,8 +415,6 @@ unsafe fn load_app_from_registry(
             let install_dir = exec_path.parent().unwrap().to_path_buf();
             app_builder.installation_directory = Some(install_dir);
         }
-
-        CoTaskMemFree(temp as *mut c_void);
     }
 
     {
@@ -457,8 +445,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) == ERROR_SUCCESS
     {
-        let temp: *mut WCHAR =
-            CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
+        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
         if RegGetValueW(
             buildKey,
@@ -466,17 +453,14 @@ unsafe fn load_app_from_registry(
             "Language",
             RRF_RT_REG_SZ,
             nullptr(),
-            temp as *mut c_void,
+            buffer.as_mut_ptr() as *mut c_void,
             &mut size,
         ) != ERROR_SUCCESS
         {
-            CoTaskMemFree(temp as *mut c_void);
             return Err(());
         }
 
-        app_builder.language_tag = Some(utf16_ptr_to_string(temp));
-
-        CoTaskMemFree(temp as *mut c_void);
+        app_builder.language_tag = Some(utf16_ptr_to_string(buffer.as_ptr()));
     } else {
         app_builder.language_tag = Some(String::from("en"));
     }
@@ -495,7 +479,7 @@ unsafe fn load_app_from_registry(
         return Err(());
     }
 
-    let temp: *mut WCHAR = CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
+    let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
     if RegGetValueW(
         buildKey,
@@ -503,17 +487,15 @@ unsafe fn load_app_from_registry(
         "ProductName",
         RRF_RT_REG_SZ,
         nullptr(),
-        temp as *mut c_void,
+        buffer.as_mut_ptr() as *mut c_void,
         &mut size,
     ) != ERROR_SUCCESS
     {
-        CoTaskMemFree(temp as *mut c_void);
         return Err(());
     }
 
-    app_builder.app_name = Some(utf16_ptr_to_string(temp));
-
-    CoTaskMemFree(temp as *mut c_void);
+    app_builder.app_name = Some(utf16_ptr_to_string(buffer.as_ptr()));
+    drop(buffer);
 
     if RegGetValueW(
         buildKey,
@@ -525,8 +507,7 @@ unsafe fn load_app_from_registry(
         &mut size,
     ) == ERROR_SUCCESS
     {
-        let temp: *mut WCHAR =
-            CoTaskMemAlloc(usize::try_from(size).unwrap()) as *mut WCHAR;
+        let mut buffer: Vec<WCHAR> = vec![0; usize::try_from(size / 2).unwrap()];
 
         if RegGetValueW(
             buildKey,
@@ -534,11 +515,11 @@ unsafe fn load_app_from_registry(
             "ProductVersion",
             RRF_RT_REG_SZ,
             nullptr(),
-            temp as *mut c_void,
+            buffer.as_mut_ptr() as *mut c_void,
             &mut size,
         ) == ERROR_SUCCESS
         {
-            match AppVersion::parse_windows(&utf16_ptr_to_string(temp)) {
+            match AppVersion::parse_windows(&utf16_ptr_to_string(buffer.as_ptr())) {
                 Ok(version) => {
                     app_builder.app_version = Some(version);
                 },
@@ -547,8 +528,6 @@ unsafe fn load_app_from_registry(
                 },
             }
         }
-
-        CoTaskMemFree(temp as *mut c_void);
     }
 
     if RegGetValueW(

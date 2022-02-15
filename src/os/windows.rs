@@ -27,10 +27,9 @@ use windows::Win32::{
             PROCESSOR_ARCHITECTURE_ARM, PROCESSOR_ARCHITECTURE_INTEL,
         },
         Registry::{
-            RegCloseKey, RegEnumKeyW, RegGetValueW, RegOpenKeyExA, RegOpenKeyExW,
-            RegQueryInfoKeyW, HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ,
-            KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_SAM_FLAGS, RRF_RT_REG_DWORD,
-            RRF_RT_REG_SZ,
+            RegCloseKey, RegEnumKeyW, RegGetValueW, RegOpenKeyExA, RegOpenKeyExW, HKEY,
+            HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY,
+            KEY_WOW64_64KEY, REG_SAM_FLAGS, RRF_RT_REG_DWORD, RRF_RT_REG_SZ,
         },
         SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO},
         SystemServices::PROCESSOR_ARCHITECTURE_ARM64,
@@ -726,10 +725,6 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
     let mut access_type: REG_SAM_FLAGS = KEY_READ | KEY_WOW64_64KEY;
     let mut alt_access_type: REG_SAM_FLAGS = KEY_READ | KEY_WOW64_32KEY;
 
-    let mut num_root_keys: DWORD = 0;
-    let mut num_alt_root_keys: DWORD = 0;
-    let mut num_user_keys: DWORD = 0;
-
     let host_system_id: String = win_host_system_id();
 
     // #if _M_X64 || _M_ARM64
@@ -767,59 +762,6 @@ unsafe fn load_apps_from_registry() -> Vec<WolframApp> {
             &mut the_alt_root_key,
         );
     }
-
-    if the_root_key != HKEY(0) {
-        RegQueryInfoKeyW(
-            the_root_key,
-            PWSTR(nullptr()),
-            nullptr(),
-            nullptr(),
-            &mut num_root_keys,
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-        );
-    }
-    if needs_alt && the_alt_root_key != HKEY(0) {
-        RegQueryInfoKeyW(
-            the_alt_root_key,
-            PWSTR(nullptr()),
-            nullptr(),
-            nullptr(),
-            &mut num_alt_root_keys,
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-        );
-    }
-    if the_user_key != HKEY(0) {
-        RegQueryInfoKeyW(
-            the_user_key,
-            PWSTR(nullptr()),
-            nullptr(),
-            nullptr(),
-            &mut num_user_keys,
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-            nullptr(),
-        );
-    }
-
-    installations.reserve(
-        usize::try_from(num_root_keys + num_alt_root_keys + num_user_keys + 1).unwrap(),
-    );
 
     let mut load_products_from_registry_key =
         |the_key: HKEY, access_type: REG_SAM_FLAGS, system_id: &str| {

@@ -398,14 +398,24 @@ unsafe fn load_app_from_registry(
     {
         let [major, minor, revision, minor_revision] = enabled.to_be_bytes();
 
-        app_builder.app_version = Some(AppVersion {
-            major: u32::from(major),
-            minor: u32::from(minor),
-            revision: u32::from(revision),
-            minor_revision: Some(u32::from(minor_revision)),
+        if (major, minor, revision, minor_revision) == (0, 0, 0, 0) {
+            // TODO: Does this zero version number appear only in Prototype builds?
 
-            build_code: None,
-        });
+            // Don't set the version number based on this registry value.
+            crate::warning(&format!(
+                "application registry key \"Version\" value is 0.0.0.0  (at: {:?})",
+                app_builder.installation_directory
+            ));
+        } else {
+            app_builder.app_version = Some(AppVersion {
+                major: u32::from(major),
+                minor: u32::from(minor),
+                revision: u32::from(revision),
+                minor_revision: Some(u32::from(minor_revision)),
+
+                build_code: None,
+            });
+        }
     }
 
     if !app_builder.app_version.is_some() {

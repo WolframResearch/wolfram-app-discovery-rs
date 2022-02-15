@@ -88,7 +88,33 @@ enum Origin {
 
 impl WolframAppBuilder {
     fn finish(self) -> Result<WolframApp, ()> {
-        todo!("PRE_COMMIT")
+        let WolframAppBuilder {
+            app_name,
+            app_version,
+            app_type,
+            installation_directory,
+            executable_path,
+            // TODO: Expose these fields?
+            system_id: _,
+            id: _,
+            language_tag: _,
+            digitally_signed: _,
+            origin: _,
+        } = self;
+
+        Ok(WolframApp {
+            app_name: app_name.ok_or(())?,
+            app_version: app_version.ok_or(())?,
+            app_type: app_type.ok_or(())?,
+
+            // TODO: Is this always correct on Windows?
+            app_directory: installation_directory.ok_or(())?,
+            app_executable: executable_path,
+
+            embedded_player: None,
+        }
+        .set_engine_embedded_player()
+        .map_err(|_| ())?)
     }
 }
 

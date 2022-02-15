@@ -35,3 +35,49 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
         "WolframApp::from_app_directory()",
     ))
 }
+
+//======================================
+// Utilities
+//======================================
+
+/// Operating systems supported by supported by `wolfram-app-discovery`.
+///
+/// This enum and [`OperatingSystem::target_os()`] exist to be a less fragile
+/// alternative to code like:
+///
+/// ```ignore
+/// if cfg!(target_os = "macos") {
+///     // ...
+/// } else if cfg!(target_os = "windows") {
+///     // ...
+/// } else if cfg!(target_os = "linux") {
+///     // ...
+/// } else {
+///     // Error
+/// }
+/// ```
+///
+/// Using an enum ensures that all variants are handled in any place where
+/// platform-specific logic is required.
+pub(crate) enum OperatingSystem {
+    MacOS,
+    Windows,
+    Linux,
+    Other,
+}
+
+impl OperatingSystem {
+    /// Get the [`OperatingSystem`] value for the platform being targeted by the build
+    /// of this Rust code.
+    pub fn target_os() -> Self {
+        if cfg!(target_os = "macos") {
+            OperatingSystem::MacOS
+        } else if cfg!(target_os = "windows") {
+            OperatingSystem::Windows
+        } else if cfg!(target_os = "linux") {
+            OperatingSystem::Linux
+        } else {
+            OperatingSystem::Other
+        }
+    }
+}

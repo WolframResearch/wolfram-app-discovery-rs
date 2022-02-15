@@ -16,8 +16,7 @@ mod test_readme {
 
 use std::{fmt, path::PathBuf, process};
 
-use crate::config::get_env_var;
-
+use crate::{config::get_env_var, os::OperatingSystem};
 
 //======================================
 // Types
@@ -444,7 +443,7 @@ impl WolframApp {
     /// Location of the application's main executable.
     ///
     /// * **macOS:** `CFBundleCopyExecutableURL()` location.
-    /// * **Windows:** *TODO*
+    /// * **Windows:** `RegGetValue(_, _, "ExecutablePath", ...)` location.
     /// * **Linux:** *TODO*
     pub fn app_executable(&self) -> Option<PathBuf> {
         self.app_executable.clone()
@@ -519,14 +518,16 @@ impl WolframApp {
             return player.installation_directory();
         }
 
-        if cfg!(target_os = "macos") {
-            self.app_directory.join("Contents")
-        } else {
-            // FIXME: Fill this in for Windows and Linux
-            panic!(
-                "{}",
-                platform_unsupported_error("WolframApp::from_app_directory()",)
-            )
+        match OperatingSystem::target_os() {
+            OperatingSystem::MacOS => self.app_directory.join("Contents"),
+            OperatingSystem::Windows => self.app_directory.clone(),
+            // FIXME: Fill this in for Linux
+            OperatingSystem::Linux | OperatingSystem::Other => {
+                panic!(
+                    "{}",
+                    platform_unsupported_error("WolframApp::from_app_directory()",)
+                )
+            },
         }
     }
 
@@ -538,14 +539,20 @@ impl WolframApp {
     /// [`WolframKernel`](https://reference.wolfram.com/language/ref/program/WolframKernel.html)
     /// executable.
     pub fn kernel_executable_path(&self) -> Result<PathBuf, Error> {
-        let path = if cfg!(target_os = "macos") {
-            // TODO: In older versions of the product, MacOSX was used instead of MacOS.
-            //       Look for either, depending on the version number.
-            self.installation_directory()
-                .join("MacOS")
-                .join("WolframKernel")
-        } else {
-            return Err(platform_unsupported_error("kernel_executable_path()"));
+        let path = match OperatingSystem::target_os() {
+            OperatingSystem::MacOS => {
+                // TODO: In older versions of the product, MacOSX was used instead of MacOS.
+                //       Look for either, depending on the version number.
+                self.installation_directory()
+                    .join("MacOS")
+                    .join("WolframKernel")
+            },
+            OperatingSystem::Windows => {
+                self.installation_directory().join("WolframKernel.exe")
+            },
+            OperatingSystem::Linux | OperatingSystem::Other => {
+                return Err(platform_unsupported_error("kernel_executable_path()"));
+            },
         };
 
         if !path.is_file() {
@@ -566,12 +573,14 @@ impl WolframApp {
             return player.wolframscript_executable_path();
         }
 
-        let path = if cfg!(target_os = "macos") {
-            PathBuf::from("MacOS").join("wolframscript")
-        } else {
-            return Err(platform_unsupported_error(
-                "wolframscript_executable_path()",
-            ));
+        let path = match OperatingSystem::target_os() {
+            OperatingSystem::MacOS => PathBuf::from("MacOS").join("wolframscript"),
+            OperatingSystem::Windows => PathBuf::from("wolframscript.exe"),
+            OperatingSystem::Linux | OperatingSystem::Other => {
+                return Err(platform_unsupported_error(
+                    "wolframscript_executable_path()",
+                ));
+            },
         };
 
         let path = self.installation_directory().join(&path);
@@ -606,10 +615,16 @@ impl WolframApp {
     /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
     /// static library.
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
-        let static_archive_name = if cfg!(target_os = "macos") {
-            "libWSTPi4.a"
-        } else {
-            return Err(platform_unsupported_error("wstp_static_library_path()"));
+        let static_archive_name = match OperatingSystem::target_os() {
+            // Note: In theory, this can also vary based on the WSTP library 'interface' version
+            //       (currently v4). But that has not changed in a long time. If the interface
+            //       version does change, this logic should be updated to also check the WL
+            //       version.
+            OperatingSystem::MacOS => "libWSTPi4.a",
+            OperatingSystem::Windows => "wstp64i4s.lib",
+            OperatingSystem::Linux | OperatingSystem::Other => {
+                return Err(platform_unsupported_error("wstp_static_library_path()"));
+            },
         };
 
         let lib = self
@@ -648,12 +663,11 @@ impl WolframApp {
             return Ok(PathBuf::from(path));
         }
 
-        let path = if cfg!(target_os = "macos") {
-            self.installation_directory()
-                .join("SystemFiles/IncludeFiles/C/")
-        } else {
-            return Err(platform_unsupported_error("library_link_c_includes_path()"));
-        };
+        let path = self
+            .installation_directory()
+            .join("SystemFiles")
+            .join("IncludeFiles")
+            .join("C");
 
         if !path.is_dir() {
             return Err(Error(format!(
@@ -679,14 +693,14 @@ impl WolframApp {
             return Ok(PathBuf::from(path));
         }
 
-        let path = if cfg!(target_os = "macos") {
-            self.installation_directory()
-                .join("SystemFiles/Links/WSTP/DeveloperKit/")
-                .join(target_system_id())
-                .join("CompilerAdditions")
-        } else {
-            return Err(platform_unsupported_error("wstp_compiler_additions_path()"));
-        };
+        let path = self
+            .installation_directory()
+            .join("SystemFiles")
+            .join("Links")
+            .join("WSTP")
+            .join("DeveloperKit")
+            .join(target_system_id())
+            .join("CompilerAdditions");
 
         if !path.is_dir() {
             return Err(Error(format!(
@@ -810,21 +824,25 @@ impl WolframApp {
             return Ok(self);
         }
 
-        let embedded_player_path = if cfg!(target_os = "macos") {
-            self.app_directory
+        let embedded_player_path = match OperatingSystem::target_os() {
+            OperatingSystem::MacOS => self
+                .app_directory
                 .join("Contents")
                 .join("Resources")
-                .join("Wolfram Player.app")
-        } else {
-            // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
-            //       or is that only done on macOS?
-            print_platform_unimplemented_warning(
-                "determine Wolfram Engine path to embedded Wolfram Player",
-            );
+                .join("Wolfram Player.app"),
+            OperatingSystem::Windows
+            | OperatingSystem::Linux
+            | OperatingSystem::Other => {
+                // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
+                //       or is that only done on macOS?
+                print_platform_unimplemented_warning(
+                    "determine Wolfram Engine path to embedded Wolfram Player",
+                );
 
-            // On the hope that returning `app` is more helpful than returning an error here,
-            // do that.
-            return Ok(self);
+                // On the hope that returning `app` is more helpful than returning an error here,
+                // do that.
+                return Ok(self);
+            },
         };
 
         // TODO: If this `?` propagates an error

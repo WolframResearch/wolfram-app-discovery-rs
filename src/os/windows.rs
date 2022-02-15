@@ -304,7 +304,8 @@ unsafe fn load_app_from_registry(
         return Err(());
     }
 
-    // PRE_COMMIT:
+    // TODO: This appears to be some kind of bit field. Parse out the fields and
+    //       store them.
     // app_builder.setCaps(caps);
 
     size = std::mem::size_of::<DWORD>() as u32;
@@ -430,7 +431,9 @@ unsafe fn load_app_from_registry(
         }
 
         if let Ok(version_string) = result {
-            if let Ok(app_version) = AppVersion::parse_windows(&version_string, build_number) {
+            if let Ok(app_version) =
+                AppVersion::parse_windows(&version_string, build_number)
+            {
                 app_builder.app_version = Some(app_version);
             }
         }
@@ -446,10 +449,10 @@ unsafe fn load_app_from_registry(
 unsafe fn load_app_from_package_info(
     package_info: &PACKAGE_INFO,
     app_builder: &mut WolframAppBuilder,
-) {
+) -> Result<(), String> {
     app_builder.id = Some(utf16_ptr_to_string(package_info.packageFullName.0));
 
-    // PRE_COMMIT
+    // FIXME:
     // app_builder.setFullVersion(package_info.packageId.version.Anonymous.Version);
 
     let package_id_name = utf16_ptr_to_string(package_info.packageId.name.0);
@@ -476,8 +479,7 @@ unsafe fn load_app_from_package_info(
     if let Some(app_type) = PACKAGE_FAMILY_TO_APP_TYPE.get(package_id_name.as_str()) {
         app_builder.app_type = Some(app_type.clone());
     } else {
-        // PRE_COMMIT
-        // app_builder.setProductType(PRODUCT_READER);
+        return Err(format!("unrecognized package id name: {}", package_id_name));
     }
 
     let system_id = match APPX_PACKAGE_ARCHITECTURE(
@@ -536,8 +538,10 @@ unsafe fn load_app_from_package_info(
     app_builder.installation_directory =
         Some(PathBuf::from(utf16_ptr_to_string(package_info.path.0)));
 
-    // PRE_COMMIT
+    // FIXME:
     // app_builder.setBuildNumber(ReadCreationIDFileFromLayout(package_info.path));
+
+    Ok(())
 }
 
 fn merge_user_installed_packages(apps: &mut Vec<WolframApp>) {
@@ -620,13 +624,25 @@ unsafe fn get_user_packages(product: &str) -> Vec<WolframApp> {
                 &mut pack_count,
             ) == ERROR_SUCCESS.0 as i32
             {
-                // PRE_COMMIT: Is this even close to safe?
+                // FIXME: Is this safe? We're casting a Vec's buffer to a struct instance. Is this
+                //        well-aligned?
                 let package_info: *const PACKAGE_INFO =
                     pack_info_buffer.as_ptr() as *const PACKAGE_INFO;
 
-                load_app_from_package_info(&*package_info, &mut app_builder);
+                match load_app_from_package_info(&*package_info, &mut app_builder) {
+                    Ok(()) => (),
+                    Err(err) => {
+                        crate::warning(&format!(
+                            "unable to process Wolfram application package '{}': {}",
+                            utf16_ptr_to_string(package_full_name.0), err
+                        ));
 
-                // PRE_COMMIT
+                        ClosePackageInfo(piref);
+                        continue;
+                    },
+                }
+
+                // TODO:
                 // UpdateCapsFromApplicationIds(piref, package_info, app_builder);
             }
         }
@@ -662,7 +678,10 @@ unsafe fn get_user_packages(product: &str) -> Vec<WolframApp> {
         // 	free(optPackInfoBuffer);
         // }
 
-        apps.push(app_builder.finish().expect("PRE_COMMIT"));
+        match app_builder.finish() {
+            Ok(app) => apps.push(app),
+            Err(()) => crate::warning("WolframAppBuilder had incomplete information"),
+        };
 
         ClosePackageInfo(piref);
     }

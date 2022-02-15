@@ -14,7 +14,7 @@ mod test_readme {
 }
 
 
-use std::{fmt, path::PathBuf, process, str::FromStr};
+use std::{fmt, path::PathBuf, process};
 
 use crate::config::get_env_var;
 
@@ -452,6 +452,28 @@ impl WolframApp {
 
     /// Returns the version of the Wolfram Language bundled with this application.
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
+        if self.app_version.major == 0 {
+            return Err(Error(format!(
+                "wolfram app has invalid application version: {:?}  (at: {})",
+                self.app_version,
+                self.app_directory.display()
+            )));
+        }
+
+        // TODO: Are there any Wolfram products where the application version number is
+        //       not the same as the Wolfram Language version it contains?
+        //
+        //       What about any Wolfram apps that do not contain a Wolfram Languae instance?
+        Ok(WolframVersion {
+            major: self.app_version.major,
+            minor: self.app_version.minor,
+            patch: self.app_version.revision,
+        })
+
+        /* TODO:
+            Look into fixing or working around the `wolframscript` hang on Windows, and generally
+            improving this approach. E.g. use WSTP instead of parsing the stdout of wolframscript.
+
         // MAJOR.MINOR
         let major_minor = self
             .wolframscript_output("$VersionNumber")?
@@ -485,6 +507,7 @@ impl WolframApp {
             minor,
             patch,
         })
+        */
     }
 
     /// The [`$InstallationDirectory`][ref/$InstallationDirectory] of this Wolfram System
@@ -675,6 +698,7 @@ impl WolframApp {
         Ok(path)
     }
 
+    #[allow(dead_code)]
     fn wolframscript_output(&self, input: &str) -> Result<String, Error> {
         let mut args = vec!["-code".to_owned(), input.to_owned()];
 

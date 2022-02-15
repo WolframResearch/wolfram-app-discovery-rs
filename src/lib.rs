@@ -449,7 +449,9 @@ impl WolframApp {
         self.app_executable.clone()
     }
 
-    /// Returns the version of the Wolfram Language bundled with this application.
+    /// Returns the version of the [Wolfram Language][WL] bundled with this application.
+    ///
+    /// [WL]: https://wolfram.com/language
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
         if self.app_version.major == 0 {
             return Err(Error(format!(

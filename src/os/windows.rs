@@ -241,7 +241,7 @@ fn win_host_system_id() -> String {
 }
 
 unsafe fn load_app_from_registry(
-    buildKey: HKEY,
+    build_key: HKEY,
     system_id: &str,
     build_number: *const WCHAR,
 ) -> Result<WolframApp, ()> {
@@ -272,7 +272,7 @@ unsafe fn load_app_from_registry(
 
     size = std::mem::size_of::<DWORD>() as u32;
     if RegGetValueW(
-        buildKey,
+        build_key,
         PWSTR(nullptr()),
         "Caps",
         RRF_RT_REG_DWORD,
@@ -289,7 +289,7 @@ unsafe fn load_app_from_registry(
 
     size = std::mem::size_of::<DWORD>() as u32;
     if RegGetValueW(
-        buildKey,
+        build_key,
         PWSTR(nullptr()),
         "ProductType",
         RRF_RT_REG_DWORD,
@@ -302,8 +302,6 @@ unsafe fn load_app_from_registry(
     }
 
     app_builder.app_type = WolframAppType::from_windows_product_type(product);
-
-    let build_key = buildKey;
 
     if let Some(id) = reg_get_value_string(build_key, "CLSID") {
         app_builder.id = Some(id);
@@ -363,7 +361,7 @@ unsafe fn load_app_from_registry(
     }
 
     if RegGetValueW(
-        buildKey,
+        build_key,
         PWSTR(nullptr()),
         "Version",
         RRF_RT_REG_DWORD,

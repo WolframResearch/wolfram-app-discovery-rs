@@ -119,7 +119,7 @@ impl WolframAppBuilder {
 }
 
 impl AppVersion {
-    fn parse_windows(version: &str) -> Result<Self, Error> {
+    fn parse_windows(version: &str, build_number: u32) -> Result<Self, Error> {
         fn parse(s: &str) -> Result<u32, Error> {
             u32::from_str(s).map_err(|err| {
                 Error(format!(
@@ -139,7 +139,7 @@ impl AppVersion {
                 revision: parse(revision)?,
 
                 minor_revision: Some(parse(minor_revision)?),
-                build_code: None,
+                build_code: build_number,
             },
             // 3 components: major.minor.revision
             [major, minor, revision] => AppVersion {
@@ -148,7 +148,7 @@ impl AppVersion {
                 revision: parse(revision)?,
 
                 minor_revision: None,
-                build_code: None,
+                build_code: build_number,
             },
             _ => {
                 return Err(Error(format!(
@@ -284,17 +284,11 @@ unsafe fn load_app_from_registry(
 
     let build_number = utf16_ptr_to_string(build_number);
 
-    let this_build: DWORD = match parse_build_number(&build_number) {
+    let build_number: DWORD = match parse_build_number(&build_number) {
+        Some(0) => return Err(()),
         Some(build_number) => build_number,
         None => return Err(()),
     };
-
-    if this_build == 0 {
-        return Err(());
-    }
-
-    // PRE_COMMIT
-    // app_builder.setBuildNumber(this_build);
 
     size = std::mem::size_of::<DWORD>() as u32;
     if RegGetValueW(
@@ -376,7 +370,7 @@ unsafe fn load_app_from_registry(
     };
 
     if let Some(version_string) = reg_get_value_string(build_key, "ProductVersion") {
-        match AppVersion::parse_windows(&version_string) {
+        match AppVersion::parse_windows(&version_string, build_number) {
             Ok(version) => {
                 app_builder.app_version = Some(version);
             },
@@ -413,7 +407,7 @@ unsafe fn load_app_from_registry(
                 revision: u32::from(revision),
                 minor_revision: Some(u32::from(minor_revision)),
 
-                build_code: None,
+                build_code: build_number,
             });
         }
     }
@@ -436,7 +430,7 @@ unsafe fn load_app_from_registry(
         }
 
         if let Ok(version_string) = result {
-            if let Ok(app_version) = AppVersion::parse_windows(&version_string) {
+            if let Ok(app_version) = AppVersion::parse_windows(&version_string, build_number) {
                 app_builder.app_version = Some(app_version);
             }
         }

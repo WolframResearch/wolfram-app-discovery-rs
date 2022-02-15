@@ -79,7 +79,7 @@ pub struct AppVersion {
     revision: u32,
     minor_revision: Option<u32>,
 
-    build_code: Option<u32>,
+    build_code: u32,
 }
 
 /// Wolfram Language version number.
@@ -248,7 +248,7 @@ impl AppVersion {
 
     #[allow(missing_docs)]
     pub fn build_code(&self) -> u32 {
-        self.build_code.expect("PRE_COMMIT")
+        self.build_code
     }
 }
 

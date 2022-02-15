@@ -221,7 +221,7 @@ fn parse_build_number(build_number: &str) -> Option<u32> {
         //                                                                  build number ^^^^^^^^
     ).unwrap();
 
-    if let Some(captures) = dbg!(regex.captures(&build_number)) {
+    if let Some(captures) = regex.captures(&build_number) {
         return DWORD::from_str(&captures[1]).ok();
     } else if let Ok(number) = DWORD::from_str(&build_number) {
         return Some(number);

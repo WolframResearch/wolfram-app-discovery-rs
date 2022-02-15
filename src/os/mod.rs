@@ -30,7 +30,10 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
     #[cfg(target_os = "macos")]
     return macos::from_app_directory(dir);
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    return windows::from_app_directory(dir);
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     Err(crate::platform_unsupported_error(
         "WolframApp::from_app_directory()",
     ))

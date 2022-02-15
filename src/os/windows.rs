@@ -51,6 +51,28 @@ pub fn discover_all() -> Vec<WolframApp> {
     unsafe { load_apps_from_registry() }
 }
 
+pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
+    if let Some(app) = discover_all().into_iter().find(|app| &app.app_directory() == dir) {
+        return Ok(app)
+    } else {
+        // NOTE:
+        //     On macOS we can use CFBundleCreate to use a path to get information about
+        //     the application that resides at that path, but I'm not currently aware of
+        //     a way to do a similar lookup on Windows.
+        //
+        //     For now, fall back to hoping that WOLFRAM_APP_DIRECTORY is only being used
+        //     to point to an app that we can otherwise discover in the registry in the
+        //     normal way.
+        //
+        //     TODO: Investigate this more thoroughly.
+        return Err(Error(format!(
+            "unable to construct WolframApp from specified app directory '{}': \
+            app could not be found in the discover() list",
+            dir.display()
+        )));
+    }
+}
+
 //======================================
 // Implementation
 //======================================
@@ -634,7 +656,8 @@ unsafe fn get_user_packages(product: &str) -> Vec<WolframApp> {
                     Err(err) => {
                         crate::warning(&format!(
                             "unable to process Wolfram application package '{}': {}",
-                            utf16_ptr_to_string(package_full_name.0), err
+                            utf16_ptr_to_string(package_full_name.0),
+                            err
                         ));
 
                         ClosePackageInfo(piref);

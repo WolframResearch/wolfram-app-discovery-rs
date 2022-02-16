@@ -51,8 +51,11 @@ pub fn discover_all() -> Vec<WolframApp> {
 }
 
 pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
-    if let Some(app) = discover_all().into_iter().find(|app| &app.app_directory() == dir) {
-        return Ok(app)
+    if let Some(app) = discover_all()
+        .into_iter()
+        .find(|app| &app.app_directory() == dir)
+    {
+        return Ok(app);
     } else {
         // NOTE:
         //     On macOS we can use CFBundleCreate to use a path to get information about

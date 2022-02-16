@@ -14,7 +14,7 @@ mod test_readme {
 }
 
 
-use std::{fmt, path::PathBuf, process};
+use std::{cmp::Ordering, fmt, path::PathBuf, process};
 
 use crate::{config::get_env_var, os::OperatingSystem};
 
@@ -83,7 +83,7 @@ pub struct AppVersion {
 }
 
 /// Wolfram Language version number.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub struct WolframVersion {
     major: u32,
@@ -108,13 +108,25 @@ impl std::error::Error for Error {}
 
 /// Discover all installed Wolfram applications.
 ///
+/// The [`WolframApp`] elements in the returned vector will be sorted by Wolfram
+/// Language version and application feature set. The newest and most general app
+/// will be at the start of the list.
+///
 /// # Caveats
 ///
 /// This function will use operating-system specific logic to discover installations of
 /// Wolfram applications. If a Wolfram application is installed to a non-standard
 /// location, it may not be discoverable by this function.
 pub fn discover() -> Vec<WolframApp> {
-    os::discover_all()
+    let mut apps = os::discover_all();
+
+    // Sort `apps` so that the "best" app is the last element in the vector.
+    apps.sort_by(WolframApp::best_order);
+
+    // Reverse `apps`, so that the best come first.
+    apps.reverse();
+
+    apps
 }
 
 /// Discover all installed Wolfram applications that match the specified filtering
@@ -126,7 +138,7 @@ pub fn discover() -> Vec<WolframApp> {
 /// Wolfram applications. If a Wolfram application is installed to a non-standard
 /// location, it may not be discoverable by this function.
 pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
-    let mut apps = os::discover_all();
+    let mut apps = discover();
 
     apps.retain(|app| filter.check_app(&app).is_ok());
 
@@ -199,6 +211,42 @@ impl WolframAppType {
             ProgrammingLab,
             WolframAlphaNotebookEdition,
         ]
+    }
+
+    /// The 'usefulness' value of a Wolfram application type, all else being equal.
+    ///
+    /// This is a rough, arbitrary indicator of how general and flexible the Wolfram
+    /// Language capabilites offered by a particular application type are.
+    ///
+    /// This relative ordering is not necessarily best for all use cases. For example,
+    /// it will rank a Wolfram Engine installation above Wolfram Player, but e.g. an
+    /// application that needs a notebook front end may actually prefer Player over
+    /// Wolfram Engine.
+    //
+    // TODO: Break this up into separately orderable properties, e.g. `has_front_end()`,
+    //       `is_restricted()`.
+    #[rustfmt::skip]
+    fn ordering_value(&self) -> u32 {
+        use WolframAppType::*;
+
+        match self {
+            // Unrestricted | with a front end
+            Desktop => 100,
+            Mathematica => 99,
+            FinancePlatform => 98,
+            ProgrammingLab => 97,
+
+            // Unrestricted | without a front end
+            Engine => 96,
+
+            // Restricted | with a front end
+            PlayerPro => 95,
+            Player => 94,
+            WolframAlphaNotebookEdition => 93,
+
+            // Restricted | without a front end
+            // TODO?
+        }
     }
 }
 
@@ -680,6 +728,62 @@ impl WolframApp {
         }
 
         Ok(path)
+    }
+
+    //----------------------------------
+    // Sorting `WolframApp`s
+    //----------------------------------
+
+    /// Order two `WolframApp`s by which is "best".
+    ///
+    /// This comparison will sort apps using the following factors in the given order:
+    ///
+    /// * Wolfram Language version number.
+    /// * Application feature set (has a front end, is unrestricted)
+    ///
+    /// For example, [Mathematica][WolframAppType::Mathematica] is a more complete
+    /// installation of the Wolfram System than [Wolfram Engine][WolframAppType::Engine],
+    /// because it provides a notebook front end.
+    ///
+    /// See also [WolframAppType::ordering_value()].
+    fn best_order(a: &WolframApp, b: &WolframApp) -> Ordering {
+        //
+        // First, sort by Wolfram Language version.
+        //
+
+        let version_order = match (a.wolfram_version().ok(), b.wolfram_version().ok()) {
+            (Some(a), Some(b)) => a.cmp(&b),
+            (Some(_), None) => Ordering::Greater,
+            (None, Some(_)) => Ordering::Less,
+            (None, None) => Ordering::Equal,
+        };
+
+        if version_order != Ordering::Equal {
+            return version_order;
+        }
+
+        //
+        // Then, sort by application type.
+        //
+
+        // Sort based roughly on the 'usefulness' of a particular application type.
+        // E.g. Wolfram Desktop > Mathematica > Wolfram Engine > etc.
+        let app_type_order = {
+            let a = a.app_type().ordering_value();
+            let b = b.app_type().ordering_value();
+            a.cmp(&b)
+        };
+
+        if app_type_order != Ordering::Equal {
+            return app_type_order;
+        }
+
+        debug_assert_eq!(a.wolfram_version().ok(), b.wolfram_version().ok());
+        debug_assert_eq!(a.app_type().ordering_value(), b.app_type().ordering_value());
+
+        // TODO: Are there any other metrics by which we could sort this apps?
+        //       Installation location? Released build vs Prototype/nightly?
+        Ordering::Equal
     }
 
     //----------------------------------

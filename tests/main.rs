@@ -3,7 +3,17 @@ use std::path::PathBuf;
 use wolfram_app_discovery::WolframApp;
 
 #[test]
+fn test_try_default() {
+    let _: WolframApp = WolframApp::try_default()
+        .expect("WolframApp::try_default() could not locate any apps");
+}
+
+#[test]
 fn macos_default_wolframscript_path() {
+    if cfg!(not(target_os = "macos")) {
+        return;
+    }
+
     let app = WolframApp::try_default().expect("failed to locate Wolfram app");
 
     let wolframscript_path = app
@@ -32,6 +42,10 @@ fn macos_wolfram_engine_contains_wolfram_player() {
 
 #[test]
 fn macos_wolfram_engine_properties() {
+    if cfg!(not(target_os = "macos")) {
+        return;
+    }
+
     let engine =
         WolframApp::from_app_directory(PathBuf::from("/Applications/Wolfram Engine.app"))
             .unwrap();

@@ -444,20 +444,29 @@ impl WolframApp {
 
         // Canonicalize the $InstallationDirectory to the application directory, then
         // delegate to from_app_directory().
-        let app_dir: PathBuf = if cfg!(target_os = "macos") {
-            if location.iter().last().unwrap() != "Contents" {
-                return Err(Error(format!(
-                    "expected last component of installation directory to be \
+        let app_dir: PathBuf = match OperatingSystem::target_os() {
+            OperatingSystem::MacOS => {
+                if location.iter().last().unwrap() != "Contents" {
+                    return Err(Error(format!(
+                        "expected last component of installation directory to be \
                     'Contents': {}",
-                    location.display()
-                )));
-            }
+                        location.display()
+                    )));
+                }
 
-            location.parent().unwrap().to_owned()
-        } else {
-            return Err(platform_unsupported_error(
-                "WolframApp::from_installation_directory()",
-            ));
+                location.parent().unwrap().to_owned()
+            },
+            OperatingSystem::Windows => {
+                // TODO: $InstallationDirectory appears to be the same as the app
+                //       directory in Mathematica v13. Is that true for all versions
+                //       released in the last few years, and for all Wolfram app types?
+                location
+            },
+            OperatingSystem::Linux | OperatingSystem::Other => {
+                return Err(platform_unsupported_error(
+                    "WolframApp::from_installation_directory()",
+                ));
+            },
         };
 
         WolframApp::from_app_directory(app_dir)

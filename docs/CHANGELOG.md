@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] – 2022-03-02
+
+### Added
+
+* Added Windows support for `WolframApp::from_installation_directory()`.  ([#20])
+
+
 
 ## [0.2.0] – 2022-02-16
 
@@ -29,11 +36,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   launching a full Wolfram Language kernel process.  ([#17])
 
 
+
 ## [0.1.2] – 2022-02-08
 
 ### Fixed
 
 * Fix compilation failure on non-macOS platforms.  ([#14])
+
 
 
 ## [0.1.1] – 2022-02-08
@@ -51,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fix broken `target_system_id()` compilation on Linux and Windows that was preventing
   docs.rs from building the crate.  ([#10]).
+
 
 
 ## [0.1.0] – 2022-02-08
@@ -92,10 +102,13 @@ Initial release of `wolfram-app-discovery`.
 [#14]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/14
 [#17]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/17
 [#18]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/18
+[#20]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/20
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.1...HEAD
 
+[0.2.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.1.0...v0.1.1

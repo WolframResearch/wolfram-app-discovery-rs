@@ -323,15 +323,28 @@ impl Filter {
 }
 
 impl WolframApp {
-    /// Evaluate [`$InstallationDirectory`][ref/$InstallationDirectory] using
-    /// `wolframscript` to get the location of the local Wolfram Language installation.
+    /// Find the default Wolfram Language installation on this computer.
     ///
-    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    /// # Discovery procedure
     ///
-    // TODO: Make this value settable using an environment variable; some people don't
-    //       have wolframscript on their `PATH`, or they may have multiple Mathematica
-    //       installations and will want to be able to exactly specify which one to use.
-    //       WOLFRAM_INSTALLATION_DIRECTORY.
+    /// 1. If the `WOLFRAM_APP_DIRECTORY` environment variable is set, return that.
+    ///
+    ///    - Setting this environment variable may be necessary if a Wolfram application
+    ///      was installed to a location not supported by the automatic discovery
+    ///      mechanisms.
+    ///
+    ///    - This enables advanced users of programs based on `wolfram-app-discovery` to
+    ///      specify the Wolfram installation they would prefer to use.
+    ///
+    /// 2. If `wolframscript` is available on `PATH`, use it to evaluate
+    ///    [`$InstallationDirectory`][$InstallationDirectory], and return the app at
+    ///    that location.
+    ///
+    /// 3. Use operating system APIs to discover installed Wolfram applications.
+    ///    - This will discover apps installed in standard locations, like `/Applications`
+    ///      on macOS or `C:\Program Files` on Windows.
+    ///
+    /// [$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
     pub fn try_default() -> Result<Self, Error> {
         WolframApp::try_default_with_filter(&Filter::allow_all())
     }

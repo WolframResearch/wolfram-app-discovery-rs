@@ -37,6 +37,8 @@ let app = WolframApp::try_default()
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 
+See also: [`WolframApp::try_default()`](https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default)
+
 ### Using the command-line tool
 
 Locate the default Wolfram Language installation on this computer:

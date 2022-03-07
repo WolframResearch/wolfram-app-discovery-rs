@@ -85,6 +85,13 @@ Licensed under either of
 
 at your option.
 
+### Wolfram application licenses
+
+Wolfram applications are covered by different licensing terms than `wolfram-app-discovery`.
+
+The [Wolfram Engine for Developers](https://wolfram.com/engine) is a free
+distribution of the Wolfram Language, licensed for personal and non-production use cases.
+
 ## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted

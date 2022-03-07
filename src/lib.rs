@@ -1,4 +1,4 @@
-//! Discovery local installations of the Wolfram Language and Wolfram products.
+//! Find local installations of the Wolfram Language and Wolfram applications.
 
 #![warn(missing_docs)]
 

@@ -6,7 +6,7 @@ use clap::Parser;
 
 use wolfram_app_discovery::{self as wad, Filter, WolframApp, WolframAppType};
 
-/// Discovery local installations of the Wolfram Language and Wolfram products.
+/// Find local installations of the Wolfram Language and Wolfram apps.
 #[derive(Parser, Debug)]
 struct Args {
     #[clap(subcommand)]

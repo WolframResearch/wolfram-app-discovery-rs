@@ -670,6 +670,9 @@ impl WolframApp {
     /// Returns the location of the
     /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
     /// header file.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
         let path = self.wstp_compiler_additions_path()?.join("wstp.h");
 
@@ -686,6 +689,9 @@ impl WolframApp {
     /// Returns the location of the
     /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
     /// static library.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
         let static_archive_name = match OperatingSystem::target_os() {
             // Note: In theory, this can also vary based on the WSTP library 'interface' version
@@ -724,8 +730,8 @@ impl WolframApp {
     /// * WolframImageLibrary.h
     /// * WolframNumericArrayLibrary.h
     ///
-    /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
-    /// *LibraryLink* interface.
+    /// *Note: The [wolfram-library-link](https://crates.io/crates/wolfram-library-link) crate
+    /// provides safe Rust bindings to the Wolfram *LibraryLink* interface.*
     pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
             return player.library_link_c_includes_path();

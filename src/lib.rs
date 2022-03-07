@@ -1,4 +1,51 @@
-//! Discovery local installations of the Wolfram Language and Wolfram products.
+//! Find local installations of the [Wolfram Language](https://www.wolfram.com/language/)
+//! and Wolfram applications.
+//!
+//! This crate provides functionality to find and query information about Wolfram Language
+//! applications installed on the current computer.
+//!
+//! # Use cases
+//!
+//! * Programs that depend on the Wolfram Language, and want to automatically use the
+//!   newest version available locally.
+//!
+//! * Build scripts that need to locate the Wolfram LibraryLink or WSTP header files and
+//!   static/dynamic library assets.
+//!
+//!   - The [wstp] and [wolfram-library-link] crate build scripts are examples of Rust
+//!     libraries that do this.
+//!
+//! * A program used on different computers that will automatically locate the Wolfram Language,
+//!   even if it resides in a different location on each computer.
+//!
+//! [wstp]: https://crates.io/crates/wstp
+//! [wolfram-library-link]: https://crates.io/crates/wolfram-library-link
+//!
+//! # Examples
+//!
+//! ###### Find the default Wolfram Language installation on this computer
+//!
+//! ```
+//! use wolfram_app_discovery::WolframApp;
+//!
+//! let app = WolframApp::try_default()
+//!     .expect("unable to locate any Wolfram apps");
+//!
+//! println!("App location: {:?}", app.app_directory());
+//! println!("Wolfram Language version: {}", app.wolfram_version().unwrap());
+//! ```
+//!
+//! ###### Find a local Wolfram Engine installation
+//!
+//! ```
+//! use wolfram_app_discovery::{discover, WolframApp, WolframAppType};
+//!
+//! let engine: WolframApp = discover()
+//!     .into_iter()
+//!     .filter(|app: &WolframApp| app.app_type() == WolframAppType::Engine)
+//!     .next()
+//!     .unwrap();
+//! ```
 
 #![warn(missing_docs)]
 
@@ -23,6 +70,8 @@ use crate::{config::get_env_var, os::OperatingSystem};
 //======================================
 
 /// A local installation of the Wolfram System.
+///
+/// See the [wolfram-app-discovery](crate) crate documentation for usage examples.
 #[rustfmt::skip]
 #[derive(Debug, Clone)]
 pub struct WolframApp {
@@ -323,15 +372,28 @@ impl Filter {
 }
 
 impl WolframApp {
-    /// Evaluate [`$InstallationDirectory`][ref/$InstallationDirectory] using
-    /// `wolframscript` to get the location of the local Wolfram Language installation.
+    /// Find the default Wolfram Language installation on this computer.
     ///
-    /// [ref/$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
+    /// # Discovery procedure
     ///
-    // TODO: Make this value settable using an environment variable; some people don't
-    //       have wolframscript on their `PATH`, or they may have multiple Mathematica
-    //       installations and will want to be able to exactly specify which one to use.
-    //       WOLFRAM_INSTALLATION_DIRECTORY.
+    /// 1. If the `WOLFRAM_APP_DIRECTORY` environment variable is set, return that.
+    ///
+    ///    - Setting this environment variable may be necessary if a Wolfram application
+    ///      was installed to a location not supported by the automatic discovery
+    ///      mechanisms.
+    ///
+    ///    - This enables advanced users of programs based on `wolfram-app-discovery` to
+    ///      specify the Wolfram installation they would prefer to use.
+    ///
+    /// 2. If `wolframscript` is available on `PATH`, use it to evaluate
+    ///    [`$InstallationDirectory`][$InstallationDirectory], and return the app at
+    ///    that location.
+    ///
+    /// 3. Use operating system APIs to discover installed Wolfram applications.
+    ///    - This will discover apps installed in standard locations, like `/Applications`
+    ///      on macOS or `C:\Program Files` on Windows.
+    ///
+    /// [$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
     pub fn try_default() -> Result<Self, Error> {
         WolframApp::try_default_with_filter(&Filter::allow_all())
     }
@@ -657,6 +719,9 @@ impl WolframApp {
     /// Returns the location of the
     /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
     /// header file.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
         let path = self.wstp_compiler_additions_path()?.join("wstp.h");
 
@@ -673,6 +738,9 @@ impl WolframApp {
     /// Returns the location of the
     /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
     /// static library.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
         let static_archive_name = match OperatingSystem::target_os() {
             // Note: In theory, this can also vary based on the WSTP library 'interface' version
@@ -711,8 +779,8 @@ impl WolframApp {
     /// * WolframImageLibrary.h
     /// * WolframNumericArrayLibrary.h
     ///
-    /// The `wolfram-library-link` crate provides safe wrappers around the Wolfram
-    /// *LibraryLink* interface.
+    /// *Note: The [wolfram-library-link](https://crates.io/crates/wolfram-library-link) crate
+    /// provides safe Rust bindings to the Wolfram *LibraryLink* interface.*
     pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
             return player.library_link_c_includes_path();

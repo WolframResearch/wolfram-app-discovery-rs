@@ -37,6 +37,8 @@ let app = WolframApp::try_default()
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 
+See also: [`WolframApp::try_default()`](https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default)
+
 ### Using the command-line tool
 
 Locate the default Wolfram Language installation on this computer:
@@ -79,11 +81,18 @@ command-line executable.
 Licensed under either of
 
 * Apache License, Version 2.0
-  ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+  ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
 * MIT license
-  ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+  ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
 
 at your option.
+
+### Wolfram application licenses
+
+Wolfram applications are covered by different licensing terms than `wolfram-app-discovery`.
+
+The [Wolfram Engine for Developers](https://wolfram.com/engine) is a free
+distribution of the Wolfram Language, licensed for personal and non-production use cases.
 
 ## Contribution
 

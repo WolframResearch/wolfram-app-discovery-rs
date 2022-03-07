@@ -1,4 +1,51 @@
-//! Find local installations of the Wolfram Language and Wolfram applications.
+//! Find local installations of the [Wolfram Language](https://www.wolfram.com/language/)
+//! and Wolfram applications.
+//!
+//! This crate provides functionality to find and query information about Wolfram Language
+//! applications installed on the current computer.
+//!
+//! # Use cases
+//!
+//! * Programs that depend on the Wolfram Language, and want to automatically use the
+//!   newest version available locally.
+//!
+//! * Build scripts that need to locate the Wolfram LibraryLink or WSTP header files and
+//!   static/dynamic library assets.
+//!
+//!   - The [wstp] and [wolfram-library-link] crate build scripts are examples of Rust
+//!     libraries that do this.
+//!
+//! * A program used on different computers that will automatically locate the Wolfram Language,
+//!   even if it resides in a different location on each computer.
+//!
+//! [wstp]: https://crates.io/crates/wstp
+//! [wolfram-library-link]: https://crates.io/crates/wolfram-library-link
+//!
+//! # Examples
+//!
+//! ###### Find the default Wolfram Language installation on this computer
+//!
+//! ```
+//! use wolfram_app_discovery::WolframApp;
+//!
+//! let app = WolframApp::try_default()
+//!     .expect("unable to locate any Wolfram apps");
+//!
+//! println!("App location: {:?}", app.app_directory());
+//! println!("Wolfram Language version: {}", app.wolfram_version().unwrap());
+//! ```
+//!
+//! ###### Find a local Wolfram Engine installation
+//!
+//! ```
+//! use wolfram_app_discovery::{discover, WolframApp, WolframAppType};
+//!
+//! let engine: WolframApp = discover()
+//!     .into_iter()
+//!     .filter(|app: &WolframApp| app.app_type() == WolframAppType::Engine)
+//!     .next()
+//!     .unwrap();
+//! ```
 
 #![warn(missing_docs)]
 
@@ -23,6 +70,8 @@ use crate::{config::get_env_var, os::OperatingSystem};
 //======================================
 
 /// A local installation of the Wolfram System.
+///
+/// See the [wolfram-app-discovery](crate) crate documentation for usage examples.
 #[rustfmt::skip]
 #[derive(Debug, Clone)]
 pub struct WolframApp {

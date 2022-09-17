@@ -50,6 +50,7 @@
 #![warn(missing_docs)]
 
 
+pub mod build_scripts;
 pub mod config;
 
 mod os;
@@ -63,7 +64,8 @@ mod test_readme {
 
 use std::{cmp::Ordering, fmt, path::PathBuf, process};
 
-use crate::{config::get_env_var, os::OperatingSystem};
+
+use crate::os::OperatingSystem;
 
 //======================================
 // Types
@@ -376,7 +378,8 @@ impl WolframApp {
     ///
     /// # Discovery procedure
     ///
-    /// 1. If the `WOLFRAM_APP_DIRECTORY` environment variable is set, return that.
+    /// 1. If the [`WOLFRAM_APP_DIRECTORY`][crate::config::env_vars::WOLFRAM_APP_DIRECTORY]
+    ///    environment variable is set, return that.
     ///
     ///    - Setting this environment variable may be necessary if a Wolfram application
     ///      was installed to a location not supported by the automatic discovery
@@ -723,7 +726,7 @@ impl WolframApp {
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
-        let path = self.wstp_compiler_additions_path()?.join("wstp.h");
+        let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
 
         if !path.is_file() {
             return Err(Error(format!(
@@ -755,7 +758,7 @@ impl WolframApp {
         };
 
         let lib = self
-            .wstp_compiler_additions_path()?
+            .wstp_compiler_additions_directory()?
             .join(static_archive_name);
 
         if !lib.is_file() {
@@ -781,13 +784,9 @@ impl WolframApp {
     ///
     /// *Note: The [wolfram-library-link](https://crates.io/crates/wolfram-library-link) crate
     /// provides safe Rust bindings to the Wolfram *LibraryLink* interface.*
-    pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
+    pub fn library_link_c_includes_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
-            return player.library_link_c_includes_path();
-        }
-
-        if let Some(path) = get_env_var(config::ENV_INCLUDE_FILES_C) {
-            return Ok(PathBuf::from(path));
+            return player.library_link_c_includes_directory();
         }
 
         let path = self
@@ -867,13 +866,11 @@ impl WolframApp {
     // Utilities
     //----------------------------------
 
-    fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
+    /// Returns the location of the CompilerAdditions subdirectory of the WSTP
+    /// SDK.
+    pub fn wstp_compiler_additions_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
-            return player.wstp_compiler_additions_path();
-        }
-
-        if let Some(path) = get_env_var(config::ENV_WSTP_COMPILER_ADDITIONS_DIR) {
-            return Ok(PathBuf::from(path));
+            return player.wstp_compiler_additions_directory();
         }
 
         let path = self

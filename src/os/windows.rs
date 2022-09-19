@@ -67,7 +67,7 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
         //     normal way.
         //
         //     TODO: Investigate this more thoroughly.
-        return Err(Error(format!(
+        return Err(Error::other(format!(
             "unable to construct WolframApp from specified app directory '{}': \
             app could not be found in the discover() list",
             dir.display()
@@ -146,7 +146,7 @@ impl AppVersion {
     fn parse_windows(version: &str, build_number: u32) -> Result<Self, Error> {
         fn parse(s: &str) -> Result<u32, Error> {
             u32::from_str(s).map_err(|err| {
-                Error(format!(
+                Error::other(format!(
                     "invalid application version number component: '{}': {}",
                     s, err
                 ))
@@ -175,7 +175,7 @@ impl AppVersion {
                 build_code: build_number,
             },
             _ => {
-                return Err(Error(format!(
+                return Err(Error::other(format!(
                     "unexpected application version number format: {}",
                     version
                 )))

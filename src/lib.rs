@@ -50,6 +50,7 @@
 #![warn(missing_docs)]
 
 
+pub mod build_scripts;
 pub mod config;
 
 mod os;
@@ -61,9 +62,18 @@ mod test_readme {
 }
 
 
-use std::{cmp::Ordering, fmt, path::PathBuf, process};
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display},
+    path::PathBuf,
+    process,
+};
 
-use crate::{config::get_env_var, os::OperatingSystem};
+
+#[allow(deprecated)]
+use config::env_vars::{RUST_WOLFRAM_LOCATION, WOLFRAM_APP_DIRECTORY};
+
+use crate::os::OperatingSystem;
 
 //======================================
 // Types
@@ -146,8 +156,67 @@ pub struct Filter {
 }
 
 /// Wolfram app discovery error.
-#[derive(Debug)]
-pub struct Error(String);
+#[derive(Debug, Clone)]
+pub struct Error(ErrorKind);
+
+#[derive(Debug, Clone)]
+pub(crate) enum ErrorKind {
+    Undiscoverable {
+        /// The thing that could not be located.
+        resource: String,
+        /// Environment variable that could be set to make this property
+        /// discoverable.
+        environment_variable: Option<&'static str>,
+    },
+    /// The file system layout of the Wolfram installation did not have the
+    /// expected structure, and a file or directory did not appear at the
+    /// expected location.
+    UnexpectedLayout {
+        resource_name: &'static str,
+        path: PathBuf,
+    },
+    /// The app manually specified by an environment variable does not match the
+    /// filter the app is expected to satisfy.
+    SpecifiedAppDoesNotMatchFilter {
+        environment_variable: &'static str,
+        filter_err: FilterError,
+    },
+    UnsupportedPlatform {
+        operation: String,
+    },
+    Other(String),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum FilterError {
+    FilterDoesNotMatchAppType {
+        app_type: WolframAppType,
+        allowed: Vec<WolframAppType>,
+    },
+}
+
+impl Error {
+    pub(crate) fn other(message: String) -> Self {
+        Error(ErrorKind::Other(message))
+    }
+
+    pub(crate) fn undiscoverable(
+        resource: String,
+        environment_variable: Option<&'static str>,
+    ) -> Self {
+        Error(ErrorKind::Undiscoverable {
+            resource,
+            environment_variable,
+        })
+    }
+
+    pub(crate) fn unexpected_layout(resource_name: &'static str, path: PathBuf) -> Self {
+        Error(ErrorKind::UnexpectedLayout {
+            resource_name,
+            path,
+        })
+    }
+}
 
 impl std::error::Error for Error {}
 
@@ -231,7 +300,7 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
         // 32-bit ARM (e.g. Raspberry Pi)
         "armv7-unknown-linux-gnueabihf" => "Linux-ARM",
         _ => {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "no System ID value associated with Rust target triple: {}",
                 rust_target
             )))
@@ -354,16 +423,16 @@ impl Filter {
         Filter { app_types: None }
     }
 
-    fn check_app(&self, app: &WolframApp) -> Result<(), Error> {
+    fn check_app(&self, app: &WolframApp) -> Result<(), FilterError> {
         let Filter { app_types } = self;
 
         // Filter by application type: Mathematica, Engine, Desktop, etc.
         if let Some(app_types) = app_types {
             if !app_types.contains(&app.app_type()) {
-                return Err(Error(format!(
-                    "application type '{:?}' is not present in list of filtered app types: {:?}",
-                    app.app_type(), app_types
-                )));
+                return Err(FilterError::FilterDoesNotMatchAppType {
+                    app_type: app.app_type(),
+                    allowed: app_types.clone(),
+                });
             }
         }
 
@@ -376,7 +445,8 @@ impl WolframApp {
     ///
     /// # Discovery procedure
     ///
-    /// 1. If the `WOLFRAM_APP_DIRECTORY` environment variable is set, return that.
+    /// 1. If the [`WOLFRAM_APP_DIRECTORY`][crate::config::env_vars::WOLFRAM_APP_DIRECTORY]
+    ///    environment variable is set, return that.
     ///
     ///    - Setting this environment variable may be necessary if a Wolfram application
     ///      was installed to a location not supported by the automatic discovery
@@ -404,7 +474,15 @@ impl WolframApp {
         // If set, use RUST_WOLFRAM_LOCATION (deprecated) or WOLFRAM_APP_DIRECTORY
         //------------------------------------------------------------------------
 
-        if let Some(dir) = config::get_env_default_installation_directory() {
+        #[allow(deprecated)]
+        if let Some(dir) = config::get_env_var(RUST_WOLFRAM_LOCATION) {
+            // This environment variable has been deprecated and will not be checked in
+            // a future version of wolfram-app-discovery. Use the
+            // WOLFRAM_APP_DIRECTORY environment variable instead.
+            config::print_deprecated_env_var_warning(RUST_WOLFRAM_LOCATION, &dir);
+
+            let dir = PathBuf::from(dir);
+
             // TODO: If an error occurs in from_path(), attach the fact that we're using
             //       the environment variable to the error message.
             let app = WolframApp::from_installation_directory(dir)?;
@@ -415,24 +493,32 @@ impl WolframApp {
             // by the user to use a specific installation. We can't fulfill that choice
             // because it doesn't satisfy the filter, but we can respect it by informing
             // them via an error instead of silently ignoring their choice.
-            if let Err(err) = filter.check_app(&app) {
-                return Err(Error(format!(
-                    "app specified by environment variable does not match filter: {}",
-                    err
-                )));
+            if let Err(filter_err) = filter.check_app(&app) {
+                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
+                    environment_variable: RUST_WOLFRAM_LOCATION,
+                    filter_err,
+                }));
             }
 
             return Ok(app);
         }
 
-        if let Some(dir) = config::get_env_default_app_directory() {
+        // TODO: WOLFRAM_(APP_)?INSTALLATION_DIRECTORY? Is this useful in any
+        //       situation where WOLFRAM_APP_DIRECTORY wouldn't be easy to set
+        //       (e.g. set based on $InstallationDirectory)?
+
+        if let Some(dir) = config::get_env_var(WOLFRAM_APP_DIRECTORY) {
+            let dir = PathBuf::from(dir);
+
             let app = WolframApp::from_app_directory(dir)?;
-            if let Err(err) = filter.check_app(&app) {
-                return Err(Error(format!(
-                    "app specified by environment variable does not match filter: {}",
-                    err
-                )));
+
+            if let Err(filter_err) = filter.check_app(&app) {
+                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
+                    environment_variable: WOLFRAM_APP_DIRECTORY,
+                    filter_err,
+                }));
             }
+
             return Ok(app);
         }
 
@@ -462,9 +548,10 @@ impl WolframApp {
         // No Wolfram applications could be found, so return an error.
         //------------------------------------------------------------
 
-        Err(Error(format!(
-            "unable to locate any Wolfram Language installations"
-        )))
+        Err(Error::undiscoverable(
+            "default Wolfram Language installation".to_owned(),
+            Some(WOLFRAM_APP_DIRECTORY),
+        ))
     }
 
     /// Construct a `WolframApp` from an application directory path.
@@ -476,7 +563,7 @@ impl WolframApp {
     /// macOS            | /Applications/Mathematica.app
     pub fn from_app_directory(app_dir: PathBuf) -> Result<WolframApp, Error> {
         if !app_dir.is_dir() {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "specified application location is not a directory: {}",
                 app_dir.display()
             )));
@@ -498,7 +585,7 @@ impl WolframApp {
     /// macOS            | /Applications/Mathematica.app/Contents/
     pub fn from_installation_directory(location: PathBuf) -> Result<WolframApp, Error> {
         if !location.is_dir() {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "invalid Wolfram app location: not a directory: {}",
                 location.display()
             )));
@@ -509,7 +596,7 @@ impl WolframApp {
         let app_dir: PathBuf = match OperatingSystem::target_os() {
             OperatingSystem::MacOS => {
                 if location.iter().last().unwrap() != "Contents" {
-                    return Err(Error(format!(
+                    return Err(Error::other(format!(
                         "expected last component of installation directory to be \
                     'Contents': {}",
                         location.display()
@@ -573,7 +660,7 @@ impl WolframApp {
     /// [WL]: https://wolfram.com/language
     pub fn wolfram_version(&self) -> Result<WolframVersion, Error> {
         if self.app_version.major == 0 {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "wolfram app has invalid application version: {:?}  (at: {})",
                 self.app_version,
                 self.app_directory.display()
@@ -677,10 +764,7 @@ impl WolframApp {
         };
 
         if !path.is_file() {
-            return Err(Error(format!(
-                "WolframKernel executable does not exist in the expected location: {}",
-                path.display()
-            )));
+            return Err(Error::unexpected_layout("WolframKernel executable", path));
         }
 
         Ok(path)
@@ -707,10 +791,7 @@ impl WolframApp {
         let path = self.installation_directory().join(&path);
 
         if !path.is_file() {
-            return Err(Error(format!(
-                "wolframscript executable does not exist in the expected location: {}",
-                path.display()
-            )));
+            return Err(Error::unexpected_layout("wolframscript executable", path));
         }
 
         Ok(path)
@@ -723,13 +804,10 @@ impl WolframApp {
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
-        let path = self.wstp_compiler_additions_path()?.join("wstp.h");
+        let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
 
         if !path.is_file() {
-            return Err(Error(format!(
-                "wstp.h C header file does not exist in the expected location: {}",
-                path.display()
-            )));
+            return Err(Error::unexpected_layout("wstp.h C header file", path));
         }
 
         Ok(path)
@@ -755,14 +833,11 @@ impl WolframApp {
         };
 
         let lib = self
-            .wstp_compiler_additions_path()?
+            .wstp_compiler_additions_directory()?
             .join(static_archive_name);
 
         if !lib.is_file() {
-            return Err(Error(format!(
-                "WSTP static library file does not exist in the expected location: {}",
-                lib.display()
-            )));
+            return Err(Error::unexpected_layout("WSTP static library file ", lib));
         }
 
         Ok(lib)
@@ -781,13 +856,9 @@ impl WolframApp {
     ///
     /// *Note: The [wolfram-library-link](https://crates.io/crates/wolfram-library-link) crate
     /// provides safe Rust bindings to the Wolfram *LibraryLink* interface.*
-    pub fn library_link_c_includes_path(&self) -> Result<PathBuf, Error> {
+    pub fn library_link_c_includes_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
-            return player.library_link_c_includes_path();
-        }
-
-        if let Some(path) = get_env_var(config::ENV_INCLUDE_FILES_C) {
-            return Ok(PathBuf::from(path));
+            return player.library_link_c_includes_directory();
         }
 
         let path = self
@@ -797,11 +868,10 @@ impl WolframApp {
             .join("C");
 
         if !path.is_dir() {
-            return Err(Error(format!(
-                "LibraryLink C header includes directory does not exist in the expected \
-                location: {}",
-                path.display()
-            )));
+            return Err(Error::unexpected_layout(
+                "LibraryLink C header includes directory",
+                path,
+            ));
         }
 
         Ok(path)
@@ -867,13 +937,11 @@ impl WolframApp {
     // Utilities
     //----------------------------------
 
-    fn wstp_compiler_additions_path(&self) -> Result<PathBuf, Error> {
+    /// Returns the location of the CompilerAdditions subdirectory of the WSTP
+    /// SDK.
+    pub fn wstp_compiler_additions_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
-            return player.wstp_compiler_additions_path();
-        }
-
-        if let Some(path) = get_env_var(config::ENV_WSTP_COMPILER_ADDITIONS_DIR) {
-            return Ok(PathBuf::from(path));
+            return player.wstp_compiler_additions_directory();
         }
 
         let path = self
@@ -886,10 +954,10 @@ impl WolframApp {
             .join("CompilerAdditions");
 
         if !path.is_dir() {
-            return Err(Error(format!(
-                "WSTP CompilerAdditions directory does not exist in the expected location: {}",
-                path.display()
-            )));
+            return Err(Error::unexpected_layout(
+                "WSTP CompilerAdditions directory",
+                path,
+            ));
         }
 
         Ok(path)
@@ -911,10 +979,9 @@ impl WolframApp {
 //----------------------------------
 
 fn platform_unsupported_error(name: &str) -> Error {
-    Error(format!(
-        "operation '{}' is not yet implemented for this platform",
-        name
-    ))
+    Error(ErrorKind::UnsupportedPlatform {
+        operation: name.to_owned(),
+    })
 }
 
 pub(crate) fn print_platform_unimplemented_warning(op: &str) {
@@ -985,7 +1052,10 @@ fn try_wolframscript_installation_directory() -> Result<Option<PathBuf>, Error> 
             // wolframscript executable is not available on PATH
             return Ok(None);
         } else {
-            return Err(Error(format!("unable to launch wolframscript: {}", err)));
+            return Err(Error::other(format!(
+                "unable to launch wolframscript: {}",
+                err
+            )));
         }
     };
 
@@ -1035,7 +1105,7 @@ impl WolframApp {
         let embedded_player = match WolframApp::from_app_directory(embedded_player_path) {
             Ok(player) => player,
             Err(err) => {
-                return Err(Error(format!(
+                return Err(Error::other(format!(
                 "Wolfram Engine application does not contain Wolfram Player.app in the \
                 expected location: {}",
                 err
@@ -1053,15 +1123,65 @@ impl WolframApp {
 // Formatting Impls
 //======================================
 
-impl fmt::Display for Error {
+impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let Error(message) = self;
+        let Error(kind) = self;
 
-        write!(f, "Wolfram app error: {}", message)
+        write!(f, "Wolfram app error: {}", kind)
     }
 }
 
-impl fmt::Display for WolframVersion {
+impl Display for ErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ErrorKind::Undiscoverable {
+                resource,
+                environment_variable,
+            } => match environment_variable {
+                Some(var) => write!(f, "unable to locate {resource}. Hint: try setting {var}"),
+                None => write!(f, "unable to locate {resource}"),
+            },
+            ErrorKind::UnexpectedLayout {
+                resource_name,
+                path,
+            } => {
+                write!(
+                    f,
+                    "{resource_name} does not exist in the expected location: {}",
+                    path.display()
+                )
+            },
+            ErrorKind::SpecifiedAppDoesNotMatchFilter {
+                environment_variable: env_var,
+                filter_err,
+            } => write!(
+                f,
+                "app specified by environment variable '{env_var}' does not match filter: {filter_err}",
+            ),
+            ErrorKind::UnsupportedPlatform { operation } => write!(
+                f,
+                "operation '{operation}' is not yet implemented for this platform",
+            ),
+            ErrorKind::Other(_) => todo!(),
+        }
+    }
+}
+
+impl Display for FilterError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            FilterError::FilterDoesNotMatchAppType { app_type, allowed } => {
+                write!(f,
+                    "application type '{:?}' is not present in list of filtered app types: {:?}",
+                    app_type, allowed
+                )
+            },
+        }
+    }
+}
+
+
+impl Display for WolframVersion {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let WolframVersion {
             major,

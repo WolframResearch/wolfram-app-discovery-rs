@@ -5,7 +5,7 @@
 //! via the Rust API.
 // TODO: or from the command-line via the `wolfram-app-discovery config` subcommand.
 //!
-//! Each resource lookup function will first check a corresponding environement
+//! Each function will first check a corresponding environment
 //! variable before falling back to look up the path in the optionally specified
 //! [`WolframApp`].
 //!
@@ -34,6 +34,8 @@ use crate::{os::OperatingSystem, platform_unsupported_error, ErrorKind};
 
 /// Discovered resource that can come from either a configuration environment
 /// variable or from a [`WolframApp`] installation.
+///
+/// Use [`Discovery::into_path_buf()`] to get the underlying file system path.
 #[derive(Clone, Debug)]
 pub enum Discovery {
     /// Location came from the [`WolframApp`] passed to the lookup function.
@@ -64,13 +66,15 @@ impl Discovery {
     }
 }
 
-/// Returns the location of the directory containing the
+/// Discover the directory containing the
 /// [Wolfram *LibraryLink*](https://reference.wolfram.com/language/guide/LibraryLink.html)
-/// C header files, by trying the following locations:
+/// C header files.
+///
+/// The following locations are searched in order:
 ///
 /// 1. The [`WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY`] environment variable
 /// 2. *Deprecated:* The [`WOLFRAM_C_INCLUDES`] environment variable
-/// 3. If `app` contains a value, [`WolframApp::library_link_c_includes_path()`].
+/// 3. If `app` contains a value, [`WolframApp::library_link_c_includes_directory()`].
 ///
 /// The standard set of *LibraryLink* C header files includes:
 ///
@@ -110,8 +114,9 @@ pub fn library_link_c_includes_directory(
 // WSTP
 //======================================
 
-/// Returns the location of the CompilerAdditions subdirectory of the WSTP SDK,
-/// by trying the following locations:
+/// Discover the CompilerAdditions subdirectory of the WSTP SDK.
+///
+/// The following locations are searched in order:
 ///
 /// 1. The [`WSTP_COMPILER_ADDITIONS_DIRECTORY`] environment variable.
 /// 2. *Deprecated:* The [`WSTP_COMPILER_ADDITIONS`] environment variable.
@@ -152,9 +157,11 @@ pub fn wstp_compiler_additions_directory(
     ))
 }
 
-/// Returns the location of the
+/// Discover the
 /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
-/// header file, by trying the following locations:
+/// header file.
+///
+/// The following locations are searched in order:
 ///
 /// 1. Location derived from [`wstp_compiler_additions_directory()`].
 /// 2. If `app` contains a value, [`WolframApp::wstp_c_header_path()`].
@@ -197,7 +204,7 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
     ))
 }
 
-/// Returns the location of the
+/// Discover the
 /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
 /// static library.
 ///

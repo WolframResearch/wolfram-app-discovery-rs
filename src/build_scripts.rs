@@ -26,15 +26,16 @@ use crate::{
     },
     Error, WolframApp,
 };
-use crate::{os::OperatingSystem, platform_unsupported_error};
+use crate::{os::OperatingSystem, platform_unsupported_error, ErrorKind};
 
 //======================================
 // API
 //======================================
 
-/// Configuration value that can come from either an environment variable or
-/// from a [`WolframApp`] installation.
-pub enum ResourceLocation {
+/// Discovered resource that can come from either a configuration environment
+/// variable or from a [`WolframApp`] installation.
+#[derive(Clone, Debug)]
+pub enum Discovery {
     /// Location came from the [`WolframApp`] passed to the lookup function.
     App(PathBuf),
 
@@ -53,12 +54,12 @@ pub enum ResourceLocation {
     },
 }
 
-impl ResourceLocation {
+impl Discovery {
     /// Converts `self` into a [`PathBuf`].
     pub fn into_path_buf(self) -> PathBuf {
         match self {
-            ResourceLocation::App(path) => path,
-            ResourceLocation::Env { variable: _, path } => path,
+            Discovery::App(path) => path,
+            Discovery::Env { variable: _, path } => path,
         }
     }
 }
@@ -82,24 +83,27 @@ impl ResourceLocation {
 /// provides safe Rust bindings to the Wolfram *LibraryLink* interface.*
 pub fn library_link_c_includes_directory(
     app: Option<&WolframApp>,
-) -> Result<Option<ResourceLocation>, Error> {
+) -> Result<Discovery, Error> {
     if let Some(resource) =
         get_env_resource(WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY, false)
     {
-        return Ok(Some(resource));
+        return Ok(resource);
     }
 
     if let Some(resource) = get_env_resource(WOLFRAM_C_INCLUDES, true) {
-        return Ok(Some(resource));
+        return Ok(resource);
     }
 
     if let Some(app) = app {
         let path = app.library_link_c_includes_directory()?;
 
-        return Ok(Some(ResourceLocation::App(path)));
+        return Ok(Discovery::App(path));
     }
 
-    Ok(None)
+    Err(Error::undiscoverable(
+        "LibraryLink C includes directory".to_owned(),
+        Some(WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY),
+    ))
 }
 
 //======================================
@@ -126,23 +130,26 @@ pub fn library_link_c_includes_directory(
 /// * [`wstp_c_header_path()`]
 pub fn wstp_compiler_additions_directory(
     app: Option<&WolframApp>,
-) -> Result<Option<ResourceLocation>, Error> {
+) -> Result<Discovery, Error> {
     if let Some(resource) = get_env_resource(WSTP_COMPILER_ADDITIONS_DIRECTORY, false) {
-        return Ok(Some(resource));
+        return Ok(resource);
     }
 
     #[allow(deprecated)]
     if let Some(resource) = get_env_resource(WSTP_COMPILER_ADDITIONS, true) {
-        return Ok(Some(resource));
+        return Ok(resource);
     }
 
     if let Some(app) = app {
         let path = app.wstp_compiler_additions_directory()?;
 
-        return Ok(Some(ResourceLocation::App(path)));
+        return Ok(Discovery::App(path));
     }
 
-    Ok(None)
+    Err(Error::undiscoverable(
+        "WSTP CompilerAdditions directory".to_owned(),
+        Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
+    ))
 }
 
 /// Returns the location of the
@@ -154,25 +161,26 @@ pub fn wstp_compiler_additions_directory(
 ///
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
-pub fn wstp_c_header_path(
-    app: Option<&WolframApp>,
-) -> Result<Option<ResourceLocation>, Error> {
-    if let Some(path) = wstp_compiler_additions_directory(app)? {
+pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
+    let dir = match wstp_compiler_additions_directory(app) {
+        Ok(dir) => Some(dir),
+        Err(Error(ErrorKind::Undiscoverable { .. })) => None,
+        Err(err) => return Err(err),
+    };
+
+    if let Some(path) = dir {
         match path {
             // If this location came from `app`, ignore it and wait to call
             // app.wstp_c_header_path() directory below.
-            ResourceLocation::App(_) => (),
-            ResourceLocation::Env { variable, path } => {
+            Discovery::App(_) => (),
+            Discovery::Env { variable, path } => {
                 let path = path.join("wstp.h");
 
                 if !path.is_file() {
-                    return Err(Error(format!(
-                        "wstp.h C header file does not exist in the expected location: {}",
-                        path.display()
-                    )));
+                    return Err(Error::unexpected_layout("wstp.h C header file", path));
                 }
 
-                return Ok(Some(ResourceLocation::Env { variable, path }));
+                return Ok(Discovery::Env { variable, path });
             },
         }
     }
@@ -180,10 +188,13 @@ pub fn wstp_c_header_path(
     if let Some(app) = app {
         let path = app.wstp_c_header_path()?;
 
-        return Ok(Some(ResourceLocation::App(path)));
+        return Ok(Discovery::App(path));
     }
 
-    Ok(None)
+    Err(Error::undiscoverable(
+        "WSTP CompilerAdditions directory".to_owned(),
+        Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
+    ))
 }
 
 /// Returns the location of the
@@ -195,9 +206,7 @@ pub fn wstp_c_header_path(
 ///
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
-pub fn wstp_static_library_path(
-    app: Option<&WolframApp>,
-) -> Result<Option<ResourceLocation>, Error> {
+pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
     let static_archive_name = match OperatingSystem::target_os() {
         // Note: In theory, this can also vary based on the WSTP library 'interface' version
         //       (currently v4). But that has not changed in a long time. If the interface
@@ -206,26 +215,33 @@ pub fn wstp_static_library_path(
         OperatingSystem::MacOS => "libWSTPi4.a",
         OperatingSystem::Windows => "wstp64i4s.lib",
         OperatingSystem::Linux | OperatingSystem::Other => {
-            return Err(platform_unsupported_error("wstp_static_library_path()"));
+            return Err(platform_unsupported_error("wstp_static_library_path()").into());
         },
     };
 
-    if let Some(path) = wstp_compiler_additions_directory(app)? {
+    let dir = match wstp_compiler_additions_directory(app) {
+        Ok(dir) => Some(dir),
+        Err(Error(ErrorKind::Undiscoverable { .. })) => None,
+        Err(err) => return Err(err),
+    };
+
+    if let Some(path) = dir {
         match path {
             // If this location came from `app`, ignore it and wait to call
             // app.wstp_c_header_path() directory below.
-            ResourceLocation::App(_) => (),
-            ResourceLocation::Env { variable, path } => {
+            Discovery::App(_) => (),
+            Discovery::Env { variable, path } => {
                 let path = path.join(static_archive_name);
 
                 if !path.is_file() {
-                    return Err(Error(format!(
-                        "WSTP static library file does not exist in the expected location: {}",
-                        path.display()
-                    )));
+                    return Err(Error::unexpected_layout(
+                        "WSTP static library file",
+                        path,
+                    )
+                    .into());
                 }
 
-                return Ok(Some(ResourceLocation::Env { variable, path }));
+                return Ok(Discovery::Env { variable, path });
             },
         }
     }
@@ -233,23 +249,26 @@ pub fn wstp_static_library_path(
     if let Some(app) = app {
         let path = app.wstp_static_library_path()?;
 
-        return Ok(Some(ResourceLocation::App(path)));
+        return Ok(Discovery::App(path));
     }
 
-    Ok(None)
+    Err(Error::undiscoverable(
+        "WSTP CompilerAdditions directory".to_owned(),
+        Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
+    ))
 }
 
 //======================================
 // Helpers
 //======================================
 
-fn get_env_resource(var: &'static str, deprecated: bool) -> Option<ResourceLocation> {
+fn get_env_resource(var: &'static str, deprecated: bool) -> Option<Discovery> {
     if let Some(path) = config::get_env_var(var) {
         if deprecated {
             config::print_deprecated_env_var_warning(var, &path);
         }
 
-        return Some(ResourceLocation::Env {
+        return Some(Discovery::Env {
             variable: var,
             path: PathBuf::from(path),
         });

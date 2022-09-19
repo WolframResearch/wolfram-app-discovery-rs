@@ -1,9 +1,6 @@
 //! Configuration of `wolfram-app-discovery` behavior.
 
-use std::{
-    path::PathBuf,
-    sync::atomic::{AtomicBool, Ordering},
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 //======================================
 // Environment variable names
@@ -57,8 +54,6 @@ pub mod env_vars {
         "WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY";
 }
 
-use self::env_vars::WOLFRAM_APP_DIRECTORY;
-
 static PRINT_CARGO_INSTRUCTIONS: AtomicBool = AtomicBool::new(false);
 
 /// Set whether or not `wolfram-app-discovery` will print
@@ -87,33 +82,6 @@ pub fn set_print_cargo_build_script_directives(should_print: bool) -> bool {
 
 fn should_print_cargo_build_script_directives() -> bool {
     PRINT_CARGO_INSTRUCTIONS.load(Ordering::SeqCst)
-}
-
-pub(crate) fn get_env_default_installation_directory() -> Option<PathBuf> {
-    #[allow(deprecated)]
-    if let Some(dir) = get_env_var(env_vars::RUST_WOLFRAM_LOCATION) {
-        // This environment variable has been deprecated and will not be checked in
-        // a future version of wolfram-app-discovery. Use the
-        // WOLFRAM_APP_DIRECTORY environment variable instead.
-        print_deprecated_env_var_warning(env_vars::RUST_WOLFRAM_LOCATION, &dir);
-
-        return Some(PathBuf::from(dir));
-    }
-
-    // TODO: WOLFRAM_APP_INSTALLATION_DIRECTORY? Is this useful in any situation where
-    //       WOLFRAM_APP_DIRECTORY wouldn't be easy to set (e.g. set based on
-    //       $InstallationDirectory)?
-
-    None
-}
-
-/// Check [`WOLFRAM_APP_DIRECTORY`] to determine the default Wolfram application.
-pub(crate) fn get_env_default_app_directory() -> Option<PathBuf> {
-    if let Some(text) = get_env_var(WOLFRAM_APP_DIRECTORY) {
-        return Some(PathBuf::from(text));
-    }
-
-    None
 }
 
 //======================================

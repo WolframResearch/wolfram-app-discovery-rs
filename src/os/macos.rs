@@ -21,7 +21,7 @@ pub fn from_app_directory(path: &PathBuf) -> Result<WolframApp, Error> {
     let url: CFURLRef = match cf_exts::url_create_with_file_system_path(path) {
         Some(url) => url,
         None => {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "unable to create CFURL from path: {:?}",
                 path
             )))
@@ -53,7 +53,7 @@ impl AppVersion {
     fn parse(version: &str) -> Result<Self, Error> {
         fn parse(s: &str) -> Result<u32, Error> {
             u32::from_str(s).map_err(|err| {
-                Error(format!(
+                Error::other(format!(
                     "invalid application version number component: '{}': {}",
                     s, err
                 ))
@@ -82,7 +82,7 @@ impl AppVersion {
                 build_code: parse(build_code)?,
             },
             _ => {
-                return Err(Error(format!(
+                return Err(Error::other(format!(
                     "unexpected application version number format: {}",
                     version
                 )))
@@ -100,7 +100,7 @@ unsafe fn get_app_from_url(
     let bundle: CFBundleRef = CFBundleCreate(std::ptr::null(), app_url);
 
     if bundle.is_null() {
-        return Err(Error("invalid CFBundleRef pointer".to_owned()));
+        return Err(Error::other("invalid CFBundleRef pointer".to_owned()));
     }
 
     //
@@ -110,7 +110,7 @@ unsafe fn get_app_from_url(
     let bundle_id = match cf_exts::bundle_identifier(bundle) {
         Some(id) => id,
         None => {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "unable to read application bundle identifier"
             )))
         },
@@ -137,7 +137,7 @@ unsafe fn get_app_from_url(
             match app_type {
                 Some(type_) => type_,
                 None => {
-                    return Err(Error(format!(
+                    return Err(Error::other(format!(
                         "application bundle identifier is not a known Wolfram app: {}",
                         bundle_id
                     )))
@@ -154,7 +154,7 @@ unsafe fn get_app_from_url(
         match cf_exts::url_get_file_system_representation(app_url) {
             Some(path) => path,
             None => {
-                return Err(Error(format!(
+                return Err(Error::other(format!(
                     "unable to convert application CFURL to file system representation"
                 )))
             },
@@ -172,7 +172,7 @@ unsafe fn get_app_from_url(
         let path: PathBuf = match cf_exts::url_get_file_system_representation(exec_url) {
             Some(path) => path,
             None => {
-                return Err(Error(format!(
+                return Err(Error::other(format!(
                     "unable to convert application executable CFURL to file system \
                     representation"
                 )))
@@ -196,13 +196,13 @@ unsafe fn get_app_from_url(
         "CFBundleShortVersionString",
     ) {
         Some(version) => AppVersion::parse(&version).map_err(|err| {
-            Error(format!(
+            Error::other(format!(
                 "unable to parse application short version string: '{}': {}",
                 version, err
             ))
         })?,
         None => {
-            return Err(Error(format!(
+            return Err(Error::other(format!(
                 "unable to read application short version string"
             )))
         },
@@ -210,7 +210,9 @@ unsafe fn get_app_from_url(
 
     let app_name =
         cf_exts::bundle_get_value_for_info_dictionary_key(bundle, "CFBundleName")
-            .ok_or_else(|| Error("app is missing CFBundleName property".to_owned()))?;
+            .ok_or_else(|| {
+                Error::other("app is missing CFBundleName property".to_owned())
+            })?;
 
     //
     // Release `bundle` and return the final WolframApp description.

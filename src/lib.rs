@@ -734,7 +734,7 @@ impl WolframApp {
             OperatingSystem::Linux | OperatingSystem::Other => {
                 panic!(
                     "{}",
-                    platform_unsupported_error("WolframApp::from_app_directory()",)
+                    platform_unsupported_error("WolframApp::installation_directory()",)
                 )
             },
         }

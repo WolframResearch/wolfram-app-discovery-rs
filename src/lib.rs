@@ -294,9 +294,11 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
         "x86_64-apple-darwin" => "MacOSX-x86-64",
         "x86_64-unknown-linux-gnu" => "Linux-x86-64",
         "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => "Windows-x86-64",
+
         // 64-bit ARM
         "aarch64-apple-darwin" => "MacOSX-ARM64",
         "aarch64-apple-ios" | "aarch64-apple-ios-sim" => "iOS-ARM64", // iOS
+        "aarch64-unknown-linux-gnu" => "Linux-ARM64",
         "aarch64-linux-android" => "Android",
 
         // 32-bit ARM (e.g. Raspberry Pi)
@@ -801,7 +803,8 @@ impl WolframApp {
             OperatingSystem::MacOS => self.app_directory.join("Contents"),
             OperatingSystem::Windows => self.app_directory.clone(),
             // FIXME: Fill this in for Linux
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => self.app_directory().clone(),
+            OperatingSystem::Other => {
                 panic!(
                     "{}",
                     platform_unsupported_error("WolframApp::installation_directory()",)
@@ -829,7 +832,16 @@ impl WolframApp {
             OperatingSystem::Windows => {
                 self.installation_directory().join("WolframKernel.exe")
             },
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => {
+                // NOTE: This empirically is valid for:
+                //     - Mathematica    (tested: 13.1)
+                //     - Wolfram Engine (tested: 13.0, 13.3 prerelease)
+                // TODO: Is this correct for Wolfram Desktop?
+                self.installation_directory()
+                    .join("Executables")
+                    .join("WolframKernel")
+            },
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error("kernel_executable_path()"));
             },
         };
@@ -852,7 +864,17 @@ impl WolframApp {
         let path = match OperatingSystem::target_os() {
             OperatingSystem::MacOS => PathBuf::from("MacOS").join("wolframscript"),
             OperatingSystem::Windows => PathBuf::from("wolframscript.exe"),
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => {
+                // NOTE: This empirically is valid for:
+                //     - Mathematica    (tested: 13.1)
+                //     - Wolfram Engine (tested: 13.0, 13.3 prerelease)
+                PathBuf::from("SystemFiles")
+                    .join("Kernel")
+                    .join("Binaries")
+                    .join(target_system_id())
+                    .join("wolframscript")
+            },
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error(
                     "wolframscript_executable_path()",
                 ));
@@ -898,7 +920,8 @@ impl WolframApp {
             //       version.
             OperatingSystem::MacOS => "libWSTPi4.a",
             OperatingSystem::Windows => "wstp64i4s.lib",
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => "libWSTP64i4.a",
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error("wstp_static_library_path()"));
             },
         };

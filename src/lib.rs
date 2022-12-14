@@ -183,6 +183,7 @@ pub(crate) enum ErrorKind {
     },
     UnsupportedPlatform {
         operation: String,
+        target_os: OperatingSystem,
     },
     Other(String),
 }
@@ -981,6 +982,7 @@ impl WolframApp {
 fn platform_unsupported_error(name: &str) -> Error {
     Error(ErrorKind::UnsupportedPlatform {
         operation: name.to_owned(),
+        target_os: OperatingSystem::target_os(),
     })
 }
 
@@ -1158,9 +1160,9 @@ impl Display for ErrorKind {
                 f,
                 "app specified by environment variable '{env_var}' does not match filter: {filter_err}",
             ),
-            ErrorKind::UnsupportedPlatform { operation } => write!(
+            ErrorKind::UnsupportedPlatform { operation, target_os } => write!(
                 f,
-                "operation '{operation}' is not yet implemented for this platform",
+                "operation '{operation}' is not yet implemented for this platform: {target_os:?}",
             ),
             ErrorKind::Other(_) => todo!(),
         }

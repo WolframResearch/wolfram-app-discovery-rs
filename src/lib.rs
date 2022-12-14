@@ -67,6 +67,7 @@ use std::{
     fmt::{self, Display},
     path::PathBuf,
     process,
+    str::FromStr,
 };
 
 
@@ -138,7 +139,7 @@ pub struct AppVersion {
     revision: u32,
     minor_revision: Option<u32>,
 
-    build_code: u32,
+    build_code: Option<u32>,
 }
 
 /// Wolfram Language version number.
@@ -367,6 +368,24 @@ impl WolframAppType {
             // TODO?
         }
     }
+
+    // TODO(cleanup): Make this method unnecessary. This is a synthesized thing,
+    // not necessarily meaningful. Remove WolframApp.app_name?
+    #[allow(dead_code)]
+    fn app_name(&self) -> &'static str {
+        match self {
+            WolframAppType::Mathematica => "Mathematica",
+            WolframAppType::Engine => "Wolfram Engine",
+            WolframAppType::Desktop => "Wolfram Desktop",
+            WolframAppType::Player => "Wolfram Player",
+            WolframAppType::PlayerPro => "Wolfram Player Pro",
+            WolframAppType::FinancePlatform => "Wolfram Finance Platform",
+            WolframAppType::ProgrammingLab => "Wolfram Programming Lab",
+            WolframAppType::WolframAlphaNotebookEdition => {
+                "Wolfram|Alpha Notebook Edition"
+            },
+        }
+    }
 }
 
 impl WolframVersion {
@@ -414,8 +433,59 @@ impl AppVersion {
     }
 
     #[allow(missing_docs)]
-    pub fn build_code(&self) -> u32 {
+    pub fn build_code(&self) -> Option<u32> {
         self.build_code
+    }
+
+    fn parse(version: &str) -> Result<Self, Error> {
+        fn parse(s: &str) -> Result<u32, Error> {
+            u32::from_str(s).map_err(|err| {
+                Error::other(format!(
+                    "invalid application version number component: '{}': {}",
+                    s, err
+                ))
+            })
+        }
+
+        let components: Vec<&str> = version.split(".").collect();
+
+        let app_version = match components.as_slice() {
+            // 5 components: major.minor.revision.minor_revision.build_code
+            [major, minor, revision, minor_revision, build_code] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: Some(parse(minor_revision)?),
+                build_code: Some(parse(build_code)?),
+            },
+            // 4 components: major.minor.revision.build_code
+            [major, minor, revision, build_code] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: None,
+                build_code: Some(parse(build_code)?),
+            },
+            // 3 components: [major.minor.revision]
+            [major, minor, revision] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: None,
+                build_code: None,
+            },
+            _ => {
+                return Err(Error::other(format!(
+                    "unexpected application version number format: {}",
+                    version
+                )))
+            },
+        };
+
+        Ok(app_version)
     }
 }
 

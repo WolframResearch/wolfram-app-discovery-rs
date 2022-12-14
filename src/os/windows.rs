@@ -163,7 +163,7 @@ impl AppVersion {
                 revision: parse(revision)?,
 
                 minor_revision: Some(parse(minor_revision)?),
-                build_code: build_number,
+                build_code: Some(build_number),
             },
             // 3 components: major.minor.revision
             [major, minor, revision] => AppVersion {
@@ -172,7 +172,7 @@ impl AppVersion {
                 revision: parse(revision)?,
 
                 minor_revision: None,
-                build_code: build_number,
+                build_code: Some(build_number),
             },
             _ => {
                 return Err(Error::other(format!(
@@ -432,7 +432,7 @@ unsafe fn load_app_from_registry(
                 revision: u32::from(revision),
                 minor_revision: Some(u32::from(minor_revision)),
 
-                build_code: build_number,
+                build_code: Some(build_number),
             });
         }
     }

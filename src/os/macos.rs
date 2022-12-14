@@ -1,6 +1,6 @@
 mod cf_exts;
 
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use core_foundation::{
     array::{CFArrayGetCount, CFArrayGetValueAtIndex, CFArrayRef},
@@ -46,50 +46,6 @@ impl WolframAppType {
             ProgrammingLab              => "com.wolfram.ProgrammingLab",
             WolframAlphaNotebookEdition => "com.wolfram.WolframAlpha.Notebook",
         }
-    }
-}
-
-impl AppVersion {
-    fn parse(version: &str) -> Result<Self, Error> {
-        fn parse(s: &str) -> Result<u32, Error> {
-            u32::from_str(s).map_err(|err| {
-                Error::other(format!(
-                    "invalid application version number component: '{}': {}",
-                    s, err
-                ))
-            })
-        }
-
-        let components: Vec<&str> = version.split(".").collect();
-
-        let app_version = match components.as_slice() {
-            // 5 components: major.minor.revision.minor_revision.build_code
-            [major, minor, revision, minor_revision, build_code] => AppVersion {
-                major: parse(major)?,
-                minor: parse(minor)?,
-                revision: parse(revision)?,
-
-                minor_revision: Some(parse(minor_revision)?),
-                build_code: parse(build_code)?,
-            },
-            // 4 components: major.minor.revision.build_code
-            [major, minor, revision, build_code] => AppVersion {
-                major: parse(major)?,
-                minor: parse(minor)?,
-                revision: parse(revision)?,
-
-                minor_revision: None,
-                build_code: parse(build_code)?,
-            },
-            _ => {
-                return Err(Error::other(format!(
-                    "unexpected application version number format: {}",
-                    version
-                )))
-            },
-        };
-
-        Ok(app_version)
     }
 }
 

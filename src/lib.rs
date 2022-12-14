@@ -1257,7 +1257,7 @@ impl Display for ErrorKind {
                 f,
                 "operation '{operation}' is not yet implemented for this platform: {target_os:?}",
             ),
-            ErrorKind::Other(_) => todo!(),
+            ErrorKind::Other(message) => write!(f, "{message}"),
         }
     }
 }

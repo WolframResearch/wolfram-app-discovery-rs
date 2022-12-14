@@ -4,6 +4,9 @@ pub mod macos;
 #[cfg(target_os = "windows")]
 pub mod windows;
 
+#[cfg(target_os = "linux")]
+pub mod linux;
+
 
 use std::path::PathBuf;
 
@@ -16,7 +19,10 @@ pub fn discover_all() -> Vec<WolframApp> {
     #[cfg(target_os = "windows")]
     return windows::discover_all();
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    return linux::discover_all();
+
+    #[allow(unreachable_code)]
     {
         crate::print_platform_unimplemented_warning(
             "discover all installed Wolfram applications",
@@ -33,7 +39,10 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
     #[cfg(target_os = "windows")]
     return windows::from_app_directory(dir);
 
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "linux")]
+    return linux::from_app_directory(dir);
+
+    #[allow(unreachable_code)]
     Err(crate::platform_unsupported_error(
         "WolframApp::from_app_directory()",
     ))
@@ -62,6 +71,7 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
 ///
 /// Using an enum ensures that all variants are handled in any place where
 /// platform-specific logic is required.
+#[derive(Debug, Clone)]
 pub(crate) enum OperatingSystem {
     MacOS,
     Windows,

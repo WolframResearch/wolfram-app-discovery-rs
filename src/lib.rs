@@ -67,6 +67,7 @@ use std::{
     fmt::{self, Display},
     path::PathBuf,
     process,
+    str::FromStr,
 };
 
 
@@ -138,7 +139,7 @@ pub struct AppVersion {
     revision: u32,
     minor_revision: Option<u32>,
 
-    build_code: u32,
+    build_code: Option<u32>,
 }
 
 /// Wolfram Language version number.
@@ -183,6 +184,7 @@ pub(crate) enum ErrorKind {
     },
     UnsupportedPlatform {
         operation: String,
+        target_os: OperatingSystem,
     },
     Other(String),
 }
@@ -292,9 +294,11 @@ pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
         "x86_64-apple-darwin" => "MacOSX-x86-64",
         "x86_64-unknown-linux-gnu" => "Linux-x86-64",
         "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => "Windows-x86-64",
+
         // 64-bit ARM
         "aarch64-apple-darwin" => "MacOSX-ARM64",
         "aarch64-apple-ios" | "aarch64-apple-ios-sim" => "iOS-ARM64", // iOS
+        "aarch64-unknown-linux-gnu" => "Linux-ARM64",
         "aarch64-linux-android" => "Android",
 
         // 32-bit ARM (e.g. Raspberry Pi)
@@ -366,6 +370,24 @@ impl WolframAppType {
             // TODO?
         }
     }
+
+    // TODO(cleanup): Make this method unnecessary. This is a synthesized thing,
+    // not necessarily meaningful. Remove WolframApp.app_name?
+    #[allow(dead_code)]
+    fn app_name(&self) -> &'static str {
+        match self {
+            WolframAppType::Mathematica => "Mathematica",
+            WolframAppType::Engine => "Wolfram Engine",
+            WolframAppType::Desktop => "Wolfram Desktop",
+            WolframAppType::Player => "Wolfram Player",
+            WolframAppType::PlayerPro => "Wolfram Player Pro",
+            WolframAppType::FinancePlatform => "Wolfram Finance Platform",
+            WolframAppType::ProgrammingLab => "Wolfram Programming Lab",
+            WolframAppType::WolframAlphaNotebookEdition => {
+                "Wolfram|Alpha Notebook Edition"
+            },
+        }
+    }
 }
 
 impl WolframVersion {
@@ -413,8 +435,59 @@ impl AppVersion {
     }
 
     #[allow(missing_docs)]
-    pub fn build_code(&self) -> u32 {
+    pub fn build_code(&self) -> Option<u32> {
         self.build_code
+    }
+
+    fn parse(version: &str) -> Result<Self, Error> {
+        fn parse(s: &str) -> Result<u32, Error> {
+            u32::from_str(s).map_err(|err| {
+                Error::other(format!(
+                    "invalid application version number component: '{}': {}",
+                    s, err
+                ))
+            })
+        }
+
+        let components: Vec<&str> = version.split(".").collect();
+
+        let app_version = match components.as_slice() {
+            // 5 components: major.minor.revision.minor_revision.build_code
+            [major, minor, revision, minor_revision, build_code] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: Some(parse(minor_revision)?),
+                build_code: Some(parse(build_code)?),
+            },
+            // 4 components: major.minor.revision.build_code
+            [major, minor, revision, build_code] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: None,
+                build_code: Some(parse(build_code)?),
+            },
+            // 3 components: [major.minor.revision]
+            [major, minor, revision] => AppVersion {
+                major: parse(major)?,
+                minor: parse(minor)?,
+                revision: parse(revision)?,
+
+                minor_revision: None,
+                build_code: None,
+            },
+            _ => {
+                return Err(Error::other(format!(
+                    "unexpected application version number format: {}",
+                    version
+                )))
+            },
+        };
+
+        Ok(app_version)
     }
 }
 
@@ -730,10 +803,11 @@ impl WolframApp {
             OperatingSystem::MacOS => self.app_directory.join("Contents"),
             OperatingSystem::Windows => self.app_directory.clone(),
             // FIXME: Fill this in for Linux
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => self.app_directory().clone(),
+            OperatingSystem::Other => {
                 panic!(
                     "{}",
-                    platform_unsupported_error("WolframApp::from_app_directory()",)
+                    platform_unsupported_error("WolframApp::installation_directory()",)
                 )
             },
         }
@@ -758,7 +832,16 @@ impl WolframApp {
             OperatingSystem::Windows => {
                 self.installation_directory().join("WolframKernel.exe")
             },
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => {
+                // NOTE: This empirically is valid for:
+                //     - Mathematica    (tested: 13.1)
+                //     - Wolfram Engine (tested: 13.0, 13.3 prerelease)
+                // TODO: Is this correct for Wolfram Desktop?
+                self.installation_directory()
+                    .join("Executables")
+                    .join("WolframKernel")
+            },
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error("kernel_executable_path()"));
             },
         };
@@ -781,7 +864,17 @@ impl WolframApp {
         let path = match OperatingSystem::target_os() {
             OperatingSystem::MacOS => PathBuf::from("MacOS").join("wolframscript"),
             OperatingSystem::Windows => PathBuf::from("wolframscript.exe"),
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => {
+                // NOTE: This empirically is valid for:
+                //     - Mathematica    (tested: 13.1)
+                //     - Wolfram Engine (tested: 13.0, 13.3 prerelease)
+                PathBuf::from("SystemFiles")
+                    .join("Kernel")
+                    .join("Binaries")
+                    .join(target_system_id())
+                    .join("wolframscript")
+            },
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error(
                     "wolframscript_executable_path()",
                 ));
@@ -827,7 +920,8 @@ impl WolframApp {
             //       version.
             OperatingSystem::MacOS => "libWSTPi4.a",
             OperatingSystem::Windows => "wstp64i4s.lib",
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Linux => "libWSTP64i4.a",
+            OperatingSystem::Other => {
                 return Err(platform_unsupported_error("wstp_static_library_path()"));
             },
         };
@@ -981,6 +1075,7 @@ impl WolframApp {
 fn platform_unsupported_error(name: &str) -> Error {
     Error(ErrorKind::UnsupportedPlatform {
         operation: name.to_owned(),
+        target_os: OperatingSystem::target_os(),
     })
 }
 
@@ -1158,11 +1253,11 @@ impl Display for ErrorKind {
                 f,
                 "app specified by environment variable '{env_var}' does not match filter: {filter_err}",
             ),
-            ErrorKind::UnsupportedPlatform { operation } => write!(
+            ErrorKind::UnsupportedPlatform { operation, target_os } => write!(
                 f,
-                "operation '{operation}' is not yet implemented for this platform",
+                "operation '{operation}' is not yet implemented for this platform: {target_os:?}",
             ),
-            ErrorKind::Other(_) => todo!(),
+            ErrorKind::Other(message) => write!(f, "{message}"),
         }
     }
 }

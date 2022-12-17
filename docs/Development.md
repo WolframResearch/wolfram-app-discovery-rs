@@ -26,7 +26,7 @@ beyond checking only one or the other.
 
 ```shell
 $ cargo build --target x86_64-apple-darwin
-$ cargo build --target -apple-darwin
+$ cargo build --target aarch64-apple-darwin
 ```
 
 **Build for Windows:**

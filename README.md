@@ -104,3 +104,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for more information.
 
 See [**Development.md**](./docs/Development.md) for instructions on how to
 perform common development tasks when contributing to this project.
+
+See [*Maintenance.md*](./docs/Maintenance.md) for instructions on how to
+maintain this project.

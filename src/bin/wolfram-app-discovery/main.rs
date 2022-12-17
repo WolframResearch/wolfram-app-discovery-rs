@@ -32,9 +32,9 @@ enum Command {
         debug: Debug,
     },
     // For generating `docs/CommandLineHelp.md`.
-    #[clap(setting(clap::AppSettings::Hidden))]
+    #[clap(hide = true)]
     PrintAllHelp {
-        #[clap(long)]
+        #[arg(long)]
         markdown: bool,
     },
 }
@@ -42,7 +42,7 @@ enum Command {
 #[derive(Parser, Debug)]
 struct AppOpts {
     /// Wolfram application types to include.
-    #[clap(long = "app-type", arg_enum)]
+    #[arg(long = "app-type", value_enum)]
     app_types: Vec<WolframAppType>,
 
     #[clap(flatten)]
@@ -52,7 +52,7 @@ struct AppOpts {
 #[derive(Parser, Debug)]
 struct Debug {
     /// Whether to print application information in the verbose Debug format.
-    #[clap(long)]
+    #[arg(long)]
     debug: bool,
 }
 

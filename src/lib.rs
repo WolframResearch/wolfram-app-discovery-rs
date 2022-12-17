@@ -106,7 +106,7 @@ pub struct WolframApp {
 /// Standalone application type distributed by Wolfram Research.
 #[derive(Debug, Clone, PartialEq, Hash)]
 #[non_exhaustive]
-#[cfg_attr(feature = "cli", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 pub enum WolframAppType {
     /// [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
     Mathematica,

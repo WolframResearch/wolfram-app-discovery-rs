@@ -4,7 +4,7 @@
 
 use crate::Args;
 
-use clap::{App, IntoApp};
+use clap::{Command, CommandFactory};
 
 pub fn print_all_help(markdown: bool) {
     if markdown {
@@ -53,7 +53,7 @@ fn print_all_help_markdown() {
 //======================================
 
 fn app_help() -> (String, Vec<(String, String)>) {
-    let cli_app = Args::into_app();
+    let cli_app = Args::command();
 
     let mut subcommand_helps = Vec::new();
     for subcommand in cli_app.get_subcommands().cloned() {
@@ -73,7 +73,7 @@ fn app_help() -> (String, Vec<(String, String)>) {
     (main_help, subcommand_helps)
 }
 
-fn help_message(app: App, args: &[&str]) -> String {
+fn help_message(app: Command, args: &[&str]) -> String {
     let help = app
         .try_get_matches_from(args)
         .expect_err("expect help text error");

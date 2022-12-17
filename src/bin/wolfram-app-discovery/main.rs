@@ -1,5 +1,3 @@
-mod print_all_help;
-
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -34,7 +32,7 @@ enum Command {
     // For generating `docs/CommandLineHelp.md`.
     #[clap(hide = true)]
     PrintAllHelp {
-        #[arg(long)]
+        #[arg(long, required = true)]
         markdown: bool,
     },
 }
@@ -68,7 +66,11 @@ fn main() -> Result<(), wad::Error> {
         Command::List(opts) => list(opts),
         Command::Inspect { app_dir, debug } => inspect(app_dir, debug.debug),
         Command::PrintAllHelp { markdown } => {
-            print_all_help::print_all_help(markdown);
+            // This is a required argument for the time being.
+            assert!(markdown);
+
+            let () = clap_markdown::print_help_markdown::<Args>();
+
             Ok(())
         },
     }

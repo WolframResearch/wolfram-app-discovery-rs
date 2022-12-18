@@ -51,7 +51,7 @@ jobs:
             -   name: Install Rust target
                 run: rustup target add ${{ matrix.target }}
 
-            -   name: Build ${{ matrix.build }}
+            -   name: Install ARM64 linker, if applicable
                 shell: bash
                 run: |
                     # If building for ARM64 Linux, install an ARM64 linker,
@@ -61,7 +61,16 @@ jobs:
                         export RUSTFLAGS="-C linker=gcc-aarch64-linux-gnu"
                         echo "A: $(which gcc-aarch64-linux-gnu)"
                         echo "B: $(which gcc-9-aarch64-linux-gnu)"
-                        rehash
+                        #rehash
+                    fi
+
+            -   name: Build ${{ matrix.build }}
+                shell: bash
+                run: |
+                    # If building for ARM64 Linux, install an ARM64 linker,
+                    # and set RUSTFLAGS so that cargo will use that linker.
+                    if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+                        export RUSTFLAGS="-C linker=gcc-aarch64-linux-gnu"
                         echo "C: $(which gcc-aarch64-linux-gnu)"
                         echo "D: $(which gcc-9-aarch64-linux-gnu)"
                     fi

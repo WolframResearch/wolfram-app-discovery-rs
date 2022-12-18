@@ -29,5 +29,5 @@ jobs:
     - name: Upload executable artifact
       uses: actions/upload-artifact@v3
       with:
-        name: wolfram-app-discovery executable
+        name: wolfram-app-discovery--${{ github.event.inputs.ref }}--linux-x86_64
         path: target/release/wolfram-app-discovery

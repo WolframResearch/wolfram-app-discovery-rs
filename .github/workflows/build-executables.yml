@@ -1,0 +1,33 @@
+name: Build wolfram-app-discovery executable
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "The commit SHA or tag to build"
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.inputs.ref }}
+      
+    - name: Run tests
+      run: cargo test --verbose
+        
+    - name: Build
+      run: cargo build --release --verbose
+      
+    - name: Upload executable artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: wolfram-app-discovery executable
+        path: target/release/wolfram-app-discovery

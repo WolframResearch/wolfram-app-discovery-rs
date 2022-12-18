@@ -17,7 +17,7 @@ jobs:
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-                build: [linux-gnu, linux-musl, macos-x86-64, macos-arm, win-msvc]
+                build: [linux-gnu, linux-musl, linux-arm-gnu, macos-x86-64, macos-arm, win-msvc]
                 include:
                 -   build: linux-gnu
                     os: ubuntu-20.04
@@ -26,6 +26,10 @@ jobs:
                 -   build: linux-musl
                     os: ubuntu-20.04
                     target: x86_64-unknown-linux-musl
+
+                -   build: linux-arm-gnu
+                    os: ubuntu-20.04
+                    target: aarch64-unknown-linux-gnu
 
                 -   build: macos-x86-64
                     os: macos-12

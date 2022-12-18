@@ -20,6 +20,9 @@ jobs:
       with:
         ref: ${{ github.event.inputs.ref }}
         
+    - name: Install MUSL target
+      run: rustup target add x86_64-unknown-linux-musl
+        
     - name: Build — Linux GNU
       run: cargo build --release --features=cli --target x86_64-unknown-linux-gnu --verbose
 
@@ -53,8 +56,8 @@ jobs:
     - name: Upload executable artifact
       uses: actions/upload-artifact@v3
       with:
-        name: wolfram-app-discovery--${{ github.event.inputs.ref }}--x86_64-pc-windows-msvc 
-        path: target/x86_64-pc-windows-msvc/release/wolfram-app-discovery
+        name: wolfram-app-discovery--${{ github.event.inputs.ref }}--x86_64-pc-windows-msvc.exe
+        path: target/x86_64-pc-windows-msvc/release/wolfram-app-discovery.exe
         
   build-macos:
 
@@ -64,6 +67,9 @@ jobs:
     - uses: actions/checkout@v3
       with:
         ref: ${{ github.event.inputs.ref }}
+    
+    - name: Install ARM64 target
+      run: rustup target add aarch64-apple-darwin
         
     - name: Build — x86_64 MacOS 
       run: cargo build --release --features=cli --target x86_64-apple-darwin --verbose

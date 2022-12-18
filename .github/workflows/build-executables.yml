@@ -56,7 +56,7 @@ jobs:
                 run: |
                     # If building for ARM64 Linux, install an ARM64 linker,
                     # and set RUSTFLAGS so that cargo will use that linker.
-                    if [ "${{ matrix.target }}" = "aarch64-linux-unknown-gnu" ]; then
+                    if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
                         sudo apt install gcc-aarch64-linux-gnu
                         RUSTFLAGS="-C linker=gcc-aarch64-linux-gnu"
                     fi

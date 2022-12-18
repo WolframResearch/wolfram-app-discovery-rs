@@ -50,30 +50,37 @@ jobs:
             -   name: Build ${{ matrix.build }}
                 run: cargo build --release --features=cli --target ${{ matrix.target }} --verbose
 
-            # On macOS and Linux cargo will generate an executable with the name
-            # `wolfram-app-discovery`. On Windows, it has the name `wolfram-app-discovery.exe`.
-            #
-            # Save that conditional result to an environment variable for later reference.
-            -   name: Determine executable name
-                shell: bash
-                run: |
-                    if [ "${{ matrix.os }}" = "windows-2019"]; then
-                        echo "EXE_NAME=wolfram-app-discovery.exe" >> $GITHUB_ENV
-                    else
-                        echo "EXE_NAME=wolfram-app-discovery" >> $GITHUB_ENV
-                    fi
-
             -   name: Construct platform release archive
+                shell: bash
                 run: |
                     staging="wolfram-app-discovery--${{ github.event.inputs.ref }}--${{ matrix.target}}"
 
                     mkdir -p "$staging"
 
-                    echo "ARTIFACT=$staging" >> $GITHUB_ENV
+                    cp {README.md,"docs/CommandLineHelp.md"} "$staging/"
 
-                    cp {README.md,docs/CommandLineHelp.md}  "$staging/"
+                    # Copy the built wolfram-app-discovery program to $staging.
+                    #
+                    # On macOS and Linux cargo will generate an executable with the name
+                    # `wolfram-app-discovery`. On Windows, it has the name `wolfram-app-discovery.exe`.
+                    if [ "${{ matrix.os }}" = "windows-2019"]; then
+                        cp "target/${{ matrix.target }}/release/wolfram-app-discovery.exe"  "$staging/"
+                    else
+                        cp "target/${{ matrix.target }}/release/wolfram-app-discovery"  "$staging/"
+                    fi
 
-                    cp "target/${{ matrix.target }}/release/${{ env.EXE_NAME }}"  "$staging/"
+                    # Compress the output archive ourselves, instead of letting
+                    # action/upload-artifact do it for us, due to this issue:
+                    #     https://github.com/actions/upload-artifact/issues/38
+                    # Causing `wolfram-app-discovery` to lose its `+x` executable
+                    # file mode flag.
+                    if [ "${{ matrix.os }}" = "windows-2019"]; then
+                        7z a "$staging.zip" "$staging"
+                        echo "ARTIFACT=$staging.zip" >> $GITHUB_ENV
+                    else
+                        tar czf "$staging.tar.gz" "$staging"
+                        echo "ARTIFACT=$staging.tar.gz" >> $GITHUB_ENV
+                    fi
 
             -   name: Upload artifact
                 uses: actions/upload-artifact@v3

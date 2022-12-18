@@ -52,7 +52,16 @@ jobs:
                 run: rustup target add ${{ matrix.target }}
 
             -   name: Build ${{ matrix.build }}
-                run: cargo build --release --features=cli --target ${{ matrix.target }} --verbose
+                shell: bash
+                run: |
+                    # If building for ARM64 Linux, install an ARM64 linker,
+                    # and set RUSTFLAGS so that cargo will use that linker.
+                    if [ "${{ matrix.target }}" = "aarch64-linux-unknown-gnu" ]; then
+                        sudo apt install gcc-aarch64-linux-gnu
+                        RUSTFLAGS="-C linker=gcc-aarch64-linux-gnu"
+                    fi
+
+                    cargo build --release --features=cli --target ${{ matrix.target }} --verbose
 
             -   name: Construct platform release archive
                 shell: bash

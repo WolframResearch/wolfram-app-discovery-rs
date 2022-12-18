@@ -13,47 +13,46 @@ env:
 jobs:
 
     build-release-artifacts:
-	
+
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-            build: [linux-gnu, linux-musl, macos-x86-64, macos-arm, win-msvc]
-            include:
-            -   build: linux-gnu
-                os: ubuntu-20.04
-                target: x86_64-unknown-linux-gnu
-                
-            -   build: linux-musl
-                os: ubuntu-20.04
-                target: x86_64-unknown-linux-musl
-            
-            -   build: macos-x86-64
-                os: macos-12
-                target: x86_64-apple-darwin
-                
-            -   build: macos-arm
-                os: macos-12
-                target: aarch64-apple-darwin
-            
-            -   build: win-msvc
-                os: windows-2019
-                target: x86_64-pc-windows-msvc
-        
+                build: [linux-gnu, linux-musl, macos-x86-64, macos-arm, win-msvc]
+                include:
+                -   build: linux-gnu
+                    os: ubuntu-20.04
+                    target: x86_64-unknown-linux-gnu
+
+                -   build: linux-musl
+                    os: ubuntu-20.04
+                    target: x86_64-unknown-linux-musl
+
+                -   build: macos-x86-64
+                    os: macos-12
+                    target: x86_64-apple-darwin
+
+                -   build: macos-arm
+                    os: macos-12
+                    target: aarch64-apple-darwin
+
+                -   build: win-msvc
+                    os: windows-2019
+                    target: x86_64-pc-windows-msvc
+
         steps:
             -   uses: actions/checkout@v3
                 with:
                     ref: ${{ github.event.inputs.ref }}
-            
+
             -   name: Install Rust target
                 run: rustup target add ${{ matrix.target }}
-                
+
             -   name: Build ${{ matrix.build }}
                 run: cargo build --release --features=cli --target ${{ matrix.target }} --verbose
-            
+
             -   name: Upload artifact
                 uses: actions/upload-artifact@v3
                 with:
                     name: wolfram-app-discovery--${{ github.event.inputs.ref }}--${{ matrix.target}}
                     path: target/${{ matrix.target }}/release/wolfram-app-discovery
-
  

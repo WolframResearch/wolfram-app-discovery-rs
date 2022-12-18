@@ -67,6 +67,8 @@ jobs:
                 run: |
                     staging="wolfram-app-discovery--${{ github.event.inputs.ref }}--${{ matrix.target}}"
 
+                    mkdir -p "$staging"
+
                     echo "ARTIFACT=$staging" >> $GITHUB_ENV
 
                     cp {README.md,docs/CommandLineHelp.md}  "$staging/"

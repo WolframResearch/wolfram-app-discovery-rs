@@ -24,7 +24,7 @@ jobs:
 #      run: cargo test --verbose
         
     - name: Build
-      run: cargo build --release --verbose
+      run: cargo build --release --features=cli --verbose
       
     - name: Upload executable artifact
       uses: actions/upload-artifact@v3

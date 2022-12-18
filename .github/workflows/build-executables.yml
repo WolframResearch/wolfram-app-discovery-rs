@@ -50,9 +50,22 @@ jobs:
             -   name: Build ${{ matrix.build }}
                 run: cargo build --release --features=cli --target ${{ matrix.target }} --verbose
 
+            # On macOS and Linux cargo will generate an executable with the name
+            # `wolfram-app-discovery`. On Windows, it has the name `wolfram-app-discovery.exe`.
+            #
+            # Save that conditional result to an environment variable for later reference.
+            -   name: Determine executable name
+                shell: bash
+                run: |
+                    if [ "${{ matrix.os }}" = "windows-2019"]; then
+                        echo "EXE_NAME=wolfram-app-discovery.exe" >> $GITHUB_ENV
+                    else
+                        echo "EXE_NAME=wolfram-app-discovery" >> $GITHUB_ENV
+                    fi
+
             -   name: Upload artifact
                 uses: actions/upload-artifact@v3
                 with:
                     name: wolfram-app-discovery--${{ github.event.inputs.ref }}--${{ matrix.target}}
-                    path: target/${{ matrix.target }}/release/wolfram-app-discovery
- 
+                    path: target/${{ matrix.target }}/release/${{ env.EXE_NAME }}
+

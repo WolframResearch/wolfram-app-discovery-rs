@@ -51,7 +51,7 @@ See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 
 ## Installing `wolfram-app-discovery`
 
-[**Download latest `wolfram-app-discovery` release.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
+[**Download `wolfram-app-discovery` releases.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
 
 Precompiled binaries for the `wolfram-app-discovery` command-line tool are
 available for all major platforms from the GitHub Releases page.

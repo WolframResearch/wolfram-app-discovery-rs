@@ -34,7 +34,7 @@ let app = WolframApp::try_default()
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 
-See also: [`WolframApp::try_default()`](https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default)
+See also: [`WolframApp::try_default()`][WolframApp::try_default]
 
 ### Using the command-line tool
 
@@ -55,8 +55,8 @@ See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 ## Configuration
 
 The default method used to locate a Wolfram Language installation
-(`WolframApp::try_default()`) will use the following steps to attempt to locate any local
-installations, returning the first one found:
+([`WolframApp::try_default()`][WolframApp::try_default]) will use the following
+steps to attempt to locate any local installations, returning the first one found:
 
 1. The location specified by the `WOLFRAM_APP_DIRECTORY` environment variable, if set.
 2. If `wolframscript` is on `PATH`, use it to locate the system installation.
@@ -110,3 +110,6 @@ perform common development tasks when contributing to this project.
 
 See [*Maintenance.md*](./docs/Maintenance.md) for instructions on how to
 maintain this project.
+
+
+[WolframApp::try_default]: https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default

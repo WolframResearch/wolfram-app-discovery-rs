@@ -56,6 +56,18 @@ See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 Precompiled binaries for the `wolfram-app-discovery` command-line tool are
 available for all major platforms from the GitHub Releases page.
 
+### Using cargo
+
+`wolfram-app-discovery` can be installed using `cargo`
+(the [Rust package manager](https://doc.rust-lang.org/cargo/)) by executing:
+
+```shell
+$ cargo install --features=cli wolfram-app-discovery
+```
+
+This will install the latest version of
+[`wolfram-app-discovery` from crates.io](https://crates.io/crates/wolfram-app-discovery).
+
 ## Configuration
 
 The default method used to locate a Wolfram Language installation

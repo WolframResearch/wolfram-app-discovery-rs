@@ -38,12 +38,10 @@ See also: [`WolframApp::try_default()`][WolframApp::try_default]
 Locate the default Wolfram Language installation on this computer:
 
 ```shell
-$ ./wolfram-app-discovery
-Default Wolfram Language installation:
-
-  Product:                     Mathematica
-  Wolfram Language version:    13.0.0
-  $InstallationDirectory:      /Applications/Wolfram/Mathematica-13.0.0.app/Contents
+$ wolfram-app-discovery default
+App type:                           Mathematica
+Wolfram Language version:           13.1.0
+Application directory:              /Applications/Wolfram/Mathematica.app
 ```
 
 See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the

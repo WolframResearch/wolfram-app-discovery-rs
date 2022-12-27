@@ -4,13 +4,7 @@
 ![License](https://img.shields.io/crates/l/wolfram-app-discovery.svg)
 [![Documentation](https://docs.rs/wolfram-app-discovery/badge.svg)](https://docs.rs/wolfram-app-discovery)
 
-<h4>
-  <a href="https://docs.rs/wolfram-app-discovery">API Documentation</a>
-  <span> | </span>
-  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/docs/CHANGELOG.md">Changelog</a>
-  <span> | </span>
-  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/CONTRIBUTING.md">Contributing</a>
-</h4>
+#### [API Documentation](https://docs.rs/wolfram-app-discovery) | [CLI Documentation](./docs/CommandLineHelp.md) | [Changelog](./docs/CHANGELOG.md) | [Contributing](./CONTRIBUTING.md)
 
 ## About
 
@@ -18,8 +12,8 @@ Find local installations of the Wolfram Language and Wolfram applications.
 
 This crate provides:
 
-* The `wolfram-app-discovery` library, whose API can be used programmatically from Rust code.
-* The `wolfram-app-discovery` executable, which can be used from the command-line.
+* The `wolfram-app-discovery` Rust crate *([API docs](https://docs.rs/wolfram-app-discovery))*
+* The `wolfram-app-discovery` command-line tool *([CLI docs](./docs/CommandLineHelp.md), [Installation](#installing-wolfram-app-discovery))*
 
 ## Examples
 
@@ -37,7 +31,7 @@ let app = WolframApp::try_default()
 println!("$InstallationDirectory: {}", app.installation_directory().display());
 ```
 
-See also: [`WolframApp::try_default()`](https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default)
+See also: [`WolframApp::try_default()`][WolframApp::try_default]
 
 ### Using the command-line tool
 
@@ -55,11 +49,18 @@ Default Wolfram Language installation:
 See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 `wolfram-app-discovery` command-line interface.
 
+## Installing `wolfram-app-discovery`
+
+[**Download `wolfram-app-discovery` releases.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
+
+Precompiled binaries for the `wolfram-app-discovery` command-line tool are
+available for all major platforms from the GitHub Releases page.
+
 ## Configuration
 
 The default method used to locate a Wolfram Language installation
-(`WolframApp::try_default()`) will use the following steps to attempt to locate any local
-installations, returning the first one found:
+([`WolframApp::try_default()`][WolframApp::try_default]) will use the following
+steps to attempt to locate any local installations, returning the first one found:
 
 1. The location specified by the `WOLFRAM_APP_DIRECTORY` environment variable, if set.
 2. If `wolframscript` is on `PATH`, use it to locate the system installation.
@@ -91,7 +92,7 @@ at your option.
 
 Wolfram applications are covered by different licensing terms than `wolfram-app-discovery`.
 
-The [Wolfram Engine for Developers](https://wolfram.com/engine) is a free
+[Wolfram Engine Community Edition](https://wolfram.com/engine) is a free
 distribution of the Wolfram Language, licensed for personal and non-production use cases.
 
 ## Contribution
@@ -107,3 +108,6 @@ perform common development tasks when contributing to this project.
 
 See [*Maintenance.md*](./docs/Maintenance.md) for instructions on how to
 maintain this project.
+
+
+[WolframApp::try_default]: https://docs.rs/wolfram-app-discovery/latest/wolfram_app_discovery/struct.WolframApp.html#method.try_default

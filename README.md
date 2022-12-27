@@ -80,6 +80,9 @@ command-line executable.
 Prebuilt executables for the `wolfram-app-discovery` command-line tool are
 available for all major platforms from the GitHub Releases page.
 
+To learn more about using `wolfram-app-discovery` from the command line, view
+the online [**CLI Documentation**](./docs/CommandLineHelp.md).
+
 ## License
 
 Licensed under either of

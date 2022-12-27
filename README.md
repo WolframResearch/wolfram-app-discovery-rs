@@ -12,11 +12,8 @@ Find local installations of the Wolfram Language and Wolfram applications.
 
 This crate provides:
 
-* The `wolfram-app-discovery` library, whose API can be used programmatically from Rust code.
-  - [API Documentation](https://docs.rs/wolfram-app-discovery)
-* The `wolfram-app-discovery` executable, which can be used from the command-line.
-  - [CLI Documentation](./docs/CommandLineHelp.md)
-  - [Installing `wolfram-app-discovery`](#installing-wolfram-app-discovery)
+* The `wolfram-app-discovery` Rust crate *([API docs](https://docs.rs/wolfram-app-discovery))*
+* The `wolfram-app-discovery` command-line tool *([CLI docs](./docs/CommandLineHelp.md), [Installation](#installing-wolfram-app-discovery))*
 
 ## Examples
 
@@ -52,7 +49,7 @@ Default Wolfram Language installation:
 See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 `wolfram-app-discovery` command-line interface.
 
-#### Installing `wolfram-app-discovery`
+## Installing `wolfram-app-discovery`
 
 [**Download latest `wolfram-app-discovery` release.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
 

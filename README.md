@@ -75,13 +75,10 @@ command-line executable.
 
 ## Installing `wolfram-app-discovery`
 
-[>> **Download `wolfram-app-discovery`** <<](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
+[**Download latest `wolfram-app-discovery` release.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
 
 Prebuilt executables for the `wolfram-app-discovery` command-line tool are
 available for all major platforms from the GitHub Releases page.
-
-To learn more about using `wolfram-app-discovery` from the command line, view
-the online [**CLI Documentation**](./docs/CommandLineHelp.md).
 
 ## License
 

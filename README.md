@@ -4,13 +4,7 @@
 ![License](https://img.shields.io/crates/l/wolfram-app-discovery.svg)
 [![Documentation](https://docs.rs/wolfram-app-discovery/badge.svg)](https://docs.rs/wolfram-app-discovery)
 
-<h4>
-  <a href="https://docs.rs/wolfram-app-discovery">API Documentation</a>
-  <span> | </span>
-  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/docs/CHANGELOG.md">Changelog</a>
-  <span> | </span>
-  <a href="https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/master/CONTRIBUTING.md">Contributing</a>
-</h4>
+#### [API Documentation](https://docs.rs/wolfram-app-discovery) | [CLI Documentation](./docs/CommandLineHelp.md) | [Changelog](./docs/CHANGELOG.md) | [Contributing](./CONTRIBUTING.md)
 
 ## About
 
@@ -19,7 +13,10 @@ Find local installations of the Wolfram Language and Wolfram applications.
 This crate provides:
 
 * The `wolfram-app-discovery` library, whose API can be used programmatically from Rust code.
+  - [API Documentation](https://docs.rs/wolfram-app-discovery)
 * The `wolfram-app-discovery` executable, which can be used from the command-line.
+  - [CLI Documentation](./docs/CommandLineHelp.md)
+  - [Installing `wolfram-app-discovery`](#installing-wolfram-app-discovery)
 
 ## Examples
 
@@ -75,6 +72,12 @@ $ export WOLFRAM_APP_DIRECTORY="/Applications/Mathematica.app"
 
 This environment variable is checked by both the `wolfram-app-discovery` library and
 command-line executable.
+
+## Installing `wolfram-app-discovery`
+
+Prebuilt executables for the `wolfram-app-discovery` command-line tool are
+available for all major platforms, and can be
+[**downloaded from the GitHub Releases page**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases).
 
 ## License
 

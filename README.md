@@ -52,6 +52,13 @@ Default Wolfram Language installation:
 See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 `wolfram-app-discovery` command-line interface.
 
+#### Installing `wolfram-app-discovery`
+
+[**Download latest `wolfram-app-discovery` release.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
+
+Prebuilt executables for the `wolfram-app-discovery` command-line tool are
+available for all major platforms from the GitHub Releases page.
+
 ## Configuration
 
 The default method used to locate a Wolfram Language installation
@@ -72,13 +79,6 @@ $ export WOLFRAM_APP_DIRECTORY="/Applications/Mathematica.app"
 
 This environment variable is checked by both the `wolfram-app-discovery` library and
 command-line executable.
-
-## Installing `wolfram-app-discovery`
-
-[**Download latest `wolfram-app-discovery` release.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)
-
-Prebuilt executables for the `wolfram-app-discovery` command-line tool are
-available for all major platforms from the GitHub Releases page.
 
 ## License
 

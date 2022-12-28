@@ -43,3 +43,54 @@ x86-64:
 $ cargo build --target x86_64-unknown-linux-gnu
 $ cargo build --target aarch64-unknown-linux-gnu
 ```
+
+## Manual Testing
+
+There is currently no automated method for testing the `wolfram-app-discovery`
+CLI. The listings below attempt to enumerate common and uncommon ways to invoke
+the CLI so that they can be tested manually by the developer when changes are
+made.
+
+### `wolfram-app-discovery` CLI
+
+#### `wolfram-app-discovery default`
+
+**Typical usage:**
+
+```shell
+wolfram-app-discovery default
+wolfram-app-discovery default --format csv
+wolfram-app-discovery default --all-properties
+wolfram-app-discovery default --properties app-type,wolfram-version
+```
+
+**Combining format and property options:**
+
+```shell
+wolfram-app-discovery default --all-properties --format csv
+```
+
+**`--raw-value`:**
+
+```shell
+wolfram-app-discovery default --raw-value library-link-c-includes-directory
+```
+
+**Malformed argument errors:**
+
+```shell
+# ERROR
+wolfram-app-discovery default --properties app-type --all-properties
+
+# ERROR
+wolfram-app-discovery default --raw-value library-link-c-includes-directory --all-properties
+```
+
+#### `wolfram-app-discovery list`
+
+```shell
+wolfram-app-discovery list
+wolfram-app-discovery list --format csv
+wolfram-app-discovery list --all-properties
+wolfram-app-discovery list --all-properties --format csv
+```

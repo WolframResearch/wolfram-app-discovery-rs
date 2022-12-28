@@ -75,6 +75,8 @@ This method uses [`WolframApp::try_default()`] to locate the default app.
 
 * `--property <PROPERTIES>` — Properties to output
 
+  Default values: `app-type`, `wolfram-version`, `app-directory`
+
   Possible values:
   - `app-type`:
     [`WolframAppType`] value describing the installation
@@ -95,7 +97,9 @@ This method uses [`WolframApp::try_default()`] to locate the default app.
 * `--all-properties` — If set, all available properties will be printed
 * `--format <FORMAT>`
 
-  *Possible Values:* `text`, `csv`
+  Default value: `text`
+
+  Possible values: `text`, `csv`
 
 
 
@@ -131,6 +135,8 @@ List all locatable Wolfram apps
 * `--debug` — Whether to print application information in the verbose Debug format
 * `--property <PROPERTIES>` — Properties to output
 
+  Default values: `app-type`, `wolfram-version`, `app-directory`
+
   Possible values:
   - `app-type`:
     [`WolframAppType`] value describing the installation
@@ -151,7 +157,9 @@ List all locatable Wolfram apps
 * `--all-properties` — If set, all available properties will be printed
 * `--format <FORMAT>`
 
-  *Possible Values:* `text`, `csv`
+  Default value: `text`
+
+  Possible values: `text`, `csv`
 
 
 
@@ -189,6 +197,8 @@ Print information about a specified Wolfram application
 
 * `--property <PROPERTIES>` — Properties to output
 
+  Default values: `app-type`, `wolfram-version`, `app-directory`
+
   Possible values:
   - `app-type`:
     [`WolframAppType`] value describing the installation
@@ -209,7 +219,9 @@ Print information about a specified Wolfram application
 * `--all-properties` — If set, all available properties will be printed
 * `--format <FORMAT>`
 
-  *Possible Values:* `text`, `csv`
+  Default value: `text`
+
+  Possible values: `text`, `csv`
 
 * `--debug` — Whether to print application information in the verbose Debug format
 

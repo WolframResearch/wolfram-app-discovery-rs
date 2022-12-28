@@ -57,7 +57,12 @@ Wolfram Language:
 #include "WolframLibrary.h"
 
 /* Adds one to the input, returning the result  */
-DLLEXPORT int increment(WolframLibraryData libData, mint argc, MArgument *args, MArgument result) {
+DLLEXPORT int increment(
+  WolframLibraryData libData,
+  mint argc,
+  MArgument *args,
+  MArgument result
+) {
     mint arg = MArgument_getInteger(args[0]);
     MArgument_setInteger(result, arg + 1);
     return LIBRARY_NO_ERROR;
@@ -66,7 +71,7 @@ DLLEXPORT int increment(WolframLibraryData libData, mint argc, MArgument *args, 
 
 To successfully compile this program, a C compiler will need to be able to find
 the included `"WolframLibrary.h"` header file. We can use `wolfram-app-discovery`
-to get the appropriate value:
+to get the path to the appropriate directory:
 
 ```shell
 # Get the LibraryLink includes directory

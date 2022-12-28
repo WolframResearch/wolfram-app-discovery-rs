@@ -28,6 +28,19 @@ pub enum Property {
 
     /// Wolfram *LibraryLink* C includes directory
     LibraryLinkCIncludesDirectory,
+
+    /// Location of the [`WolframKernel`] executable.
+    ///
+    /// [`WolframKernel`]: https://reference.wolfram.com/language/ref/program/WolframKernel.html
+    KernelExecutablePath,
+
+    /// Location of the [`wolframscript`] executable.
+    ///
+    /// [`wolframscript`]: https://reference.wolfram.com/language/ref/program/wolframscript.html
+    WolframScriptExecutablePath,
+
+    /// Location of the WSTP SDK 'CompilerAdditions' directory.
+    WstpCompilerAdditionsDirectory,
 }
 
 /// Represents the value of the specified property on the given app for the
@@ -56,6 +69,9 @@ impl Property {
                 | Property::WolframVersion
                 | Property::AppDirectory
                 | Property::InstallationDirectory
+                | Property::KernelExecutablePath
+                | Property::WolframScriptExecutablePath
+                | Property::WstpCompilerAdditionsDirectory
                 | Property::LibraryLinkCIncludesDirectory => unreachable!(),
             }
         }
@@ -65,6 +81,9 @@ impl Property {
             Property::WolframVersion,
             Property::AppDirectory,
             Property::InstallationDirectory,
+            Property::KernelExecutablePath,
+            Property::WolframScriptExecutablePath,
+            Property::WstpCompilerAdditionsDirectory,
             Property::LibraryLinkCIncludesDirectory,
         ]
     }
@@ -119,6 +138,11 @@ impl Display for Property {
             Property::WolframVersion => "Wolfram Language version",
             Property::AppDirectory => "Application directory",
             Property::InstallationDirectory => "$InstallationDirectory",
+            Property::KernelExecutablePath => "WolframKernel executable",
+            Property::WolframScriptExecutablePath => "wolframscript executable",
+            Property::WstpCompilerAdditionsDirectory => {
+                "WSTP CompilerAdditions directory"
+            },
             Property::LibraryLinkCIncludesDirectory => "LibraryLink C includes directory",
         };
 
@@ -148,6 +172,39 @@ impl<'app> Display for PropertyValue<'app> {
             },
             Property::InstallationDirectory => {
                 write!(fmt, "{}", app.installation_directory().display())
+            },
+            Property::KernelExecutablePath => match app.kernel_executable_path() {
+                Ok(path) => write!(fmt, "{}", path.display()),
+                Err(error) => {
+                    // Print an error to stderr.
+                    eprintln!("Error getting WolframKernel location: {error}");
+
+                    write!(fmt, "Error")
+                },
+            },
+            Property::WolframScriptExecutablePath => {
+                match app.wolframscript_executable_path() {
+                    Ok(path) => write!(fmt, "{}", path.display()),
+                    Err(error) => {
+                        // Print an error to stderr.
+                        eprintln!("Error getting wolframscript location: {error}");
+
+                        write!(fmt, "Error")
+                    },
+                }
+            },
+            Property::WstpCompilerAdditionsDirectory => {
+                match app.wstp_compiler_additions_directory() {
+                    Ok(path) => write!(fmt, "{}", path.display()),
+                    Err(error) => {
+                        // Print an error to stderr.
+                        eprintln!(
+                            "Error getting WSTP CompilerAdditions location: {error}"
+                        );
+
+                        write!(fmt, "Error")
+                    },
+                }
             },
             Property::LibraryLinkCIncludesDirectory => match app
                 .library_link_c_includes_directory()

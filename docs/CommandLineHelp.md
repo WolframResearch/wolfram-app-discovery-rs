@@ -38,9 +38,13 @@ This method uses [`WolframApp::try_default()`] to locate the default app.
   *Possible Values:* `mathematica`, `engine`, `desktop`, `player`, `player-pro`, `finance-platform`, `programming-lab`, `wolfram-alpha-notebook-edition`
 
 * `--debug` — Whether to print application information in the verbose Debug format
+* `--raw-value` — If specified, the value of this property will be written without any trailing newline
+
+  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`, `kernel-executable-path`, `wolfram-script-executable-path`, `wstp-compiler-additions-directory`
+
 * `--property` — Properties to output
 
-  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`
+  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`, `kernel-executable-path`, `wolfram-script-executable-path`, `wstp-compiler-additions-directory`
 
 * `--all-properties` — If set, all available properties will be printed
 * `--format`
@@ -65,7 +69,7 @@ List all locatable Wolfram apps
 * `--debug` — Whether to print application information in the verbose Debug format
 * `--property` — Properties to output
 
-  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`
+  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`, `kernel-executable-path`, `wolfram-script-executable-path`, `wstp-compiler-additions-directory`
 
 * `--all-properties` — If set, all available properties will be printed
 * `--format`
@@ -87,9 +91,13 @@ Print information about a specified Wolfram application
 
 ###### **Options:**
 
+* `--raw-value` — If specified, the value of this property will be written without any trailing newline
+
+  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`, `kernel-executable-path`, `wolfram-script-executable-path`, `wstp-compiler-additions-directory`
+
 * `--property` — Properties to output
 
-  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`
+  *Possible Values:* `app-type`, `app-directory`, `wolfram-version`, `installation-directory`, `library-link-c-includes-directory`, `kernel-executable-path`, `wolfram-script-executable-path`, `wstp-compiler-additions-directory`
 
 * `--all-properties` — If set, all available properties will be printed
 * `--format`

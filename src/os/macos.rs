@@ -5,8 +5,9 @@ use std::path::PathBuf;
 use core_foundation::{
     array::{CFArrayGetCount, CFArrayGetValueAtIndex, CFArrayRef},
     base::CFRelease,
+    base::TCFType,
     bundle::{CFBundleCopyExecutableURL, CFBundleCreate, CFBundleRef},
-    error::CFErrorRef,
+    error::{CFError, CFErrorRef},
     string::CFStringRef,
     url::CFURLRef,
 };
@@ -194,15 +195,25 @@ fn load_installed_products_from_launch_services() -> Vec<WolframApp> {
         let bundle_id: CFStringRef = cf_exts::cf_string_from_str(app_type.bundle_id());
 
         unsafe {
-            let mut out: CFErrorRef = std::ptr::null_mut();
+            let mut err: CFErrorRef = std::ptr::null_mut();
             let app_urls: CFArrayRef =
-                cf_exts::LSCopyApplicationURLsForBundleIdentifier(bundle_id, &mut out);
+                cf_exts::LSCopyApplicationURLsForBundleIdentifier(bundle_id, &mut err);
 
-            if !out.is_null() {
+            // Assume that if an error occurs, it is kLSApplicationNotFoundErr.
+            // TODO: core_foundation doesn't currently expose
+            //       kLSApplicationNotFoundErr as a constant; if that is added,
+            //       check for it here.
+            if !err.is_null() {
+                // Deallocate the error object.
+                let _err = CFError::wrap_under_create_rule(err);
+
+                /*
                 crate::warning(&format!(
                     "warning: error searching for '{:?}' application instances",
                     app_type
                 ));
+                */
+
                 continue;
             }
 

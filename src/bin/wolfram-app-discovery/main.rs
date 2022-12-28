@@ -22,17 +22,29 @@ enum Command {
     ///
     /// This method uses [`WolframApp::try_default()`] to locate the default app.
     #[clap(display_order(1))]
-    Default(CommonOpts),
+    Default {
+        #[clap(flatten)]
+        discovery: DiscoveryOpts,
+
+        #[clap(flatten)]
+        output: SingleOutputOpts,
+    },
     /// List all locatable Wolfram apps.
     #[clap(display_order(2))]
-    List(CommonOpts),
+    List {
+        #[clap(flatten)]
+        discovery: DiscoveryOpts,
+
+        #[clap(flatten)]
+        output: OutputOpts,
+    },
     /// Print information about a specified Wolfram application.
     #[clap(display_order(3))]
     Inspect {
         app_dir: PathBuf,
 
         #[clap(flatten)]
-        opts: OutputOpts,
+        opts: SingleOutputOpts,
 
         #[clap(flatten)]
         debug: Debug,
@@ -49,16 +61,6 @@ enum Command {
 // Arguments and options parsing
 //======================================
 
-#[derive(Debug)]
-#[derive(Parser)]
-struct CommonOpts {
-    #[clap(flatten)]
-    discovery: DiscoveryOpts,
-
-    #[clap(flatten)]
-    output: OutputOpts,
-}
-
 /// CLI arguments that affect which apps get discovered.
 #[derive(Debug, Clone)]
 #[derive(Parser)]
@@ -71,7 +73,24 @@ struct DiscoveryOpts {
     debug: Debug,
 }
 
-/// CLI arguments affect the content and format of the output.
+/// CLI arguments used by commands that work on a single app instance (i.e. `default`
+/// and `inspect`, but not `list`).
+#[derive(Debug, Clone)]
+#[derive(Parser)]
+struct SingleOutputOpts {
+    /// If specified, the value of this property will be written without any
+    /// trailing newline.
+    ///
+    /// This is useful when using `wolfram-app-discovery` to initialize the
+    /// value of variables in shell scripts or build scripts (e.g. CMake).
+    #[arg(long, value_name = "PROPERTY", conflicts_with_all = ["format", "properties", "all_properties"])]
+    raw_value: Option<Property>,
+
+    #[clap(flatten)]
+    output_opts: OutputOpts,
+}
+
+/// CLI arguments that affect the content and format of the output.
 #[derive(Debug, Clone)]
 #[derive(Parser)]
 struct OutputOpts {
@@ -118,13 +137,13 @@ fn main() -> Result<(), wad::Error> {
     let Args { command } = Args::parse();
 
     match command {
-        Command::Default(opts) => default(opts),
-        Command::List(opts) => list(opts),
+        Command::Default { discovery, output } => default(discovery, output),
+        Command::List { discovery, output } => list(discovery, output),
         Command::Inspect {
             app_dir,
             opts,
             debug,
-        } => inspect(app_dir, &opts, debug.debug),
+        } => inspect(app_dir, &opts, debug),
         Command::PrintAllHelp { markdown } => {
             // This is a required argument for the time being.
             assert!(markdown);
@@ -140,23 +159,22 @@ fn main() -> Result<(), wad::Error> {
 // Subcommand entrypoints
 //======================================
 
-fn default(opts: CommonOpts) -> Result<(), wad::Error> {
-    let CommonOpts { discovery, output } = opts;
-
+fn default(
+    discovery: DiscoveryOpts,
+    single_output: SingleOutputOpts,
+) -> Result<(), wad::Error> {
     let DiscoveryOpts { app_types, debug } = discovery;
 
     let filter = make_filter(app_types);
 
     let app = WolframApp::try_default_with_filter(&filter)?;
 
-    print_app_info(&app, &output, debug.debug)?;
+    print_single_app(&app, &single_output, debug)?;
 
     Ok(())
 }
 
-fn list(opts: CommonOpts) -> Result<(), wad::Error> {
-    let CommonOpts { discovery, output } = opts;
-
+fn list(discovery: DiscoveryOpts, output: OutputOpts) -> Result<(), wad::Error> {
     let DiscoveryOpts { app_types, debug } = discovery;
 
     let filter = make_filter(app_types);
@@ -198,15 +216,41 @@ fn list(opts: CommonOpts) -> Result<(), wad::Error> {
     Ok(())
 }
 
-fn inspect(location: PathBuf, opts: &OutputOpts, debug: bool) -> Result<(), wad::Error> {
+fn inspect(
+    location: PathBuf,
+    opts: &SingleOutputOpts,
+    debug: Debug,
+) -> Result<(), wad::Error> {
     let app = WolframApp::from_app_directory(location)?;
 
-    print_app_info(&app, opts, debug)
+    print_single_app(&app, opts, debug)
 }
 
 //======================================
 // Utility functions
 //======================================
+
+fn print_single_app(
+    app: &WolframApp,
+    opts: &SingleOutputOpts,
+    debug: Debug,
+) -> Result<(), wad::Error> {
+    let SingleOutputOpts {
+        raw_value,
+        output_opts,
+    } = opts;
+
+    if let Some(prop) = raw_value {
+        // NOTE: Use print! instead of println! to avoid printing a newline,
+        //       which would require the user to remove the newline in some
+        //       use-cases.
+        print!("{}", PropertyValue(&app, prop.clone()));
+
+        return Ok(());
+    }
+
+    print_app_info(app, output_opts, debug.debug)
+}
 
 fn print_app_info(
     app: &WolframApp,

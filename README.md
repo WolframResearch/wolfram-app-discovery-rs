@@ -47,6 +47,49 @@ Application directory:              /Applications/Wolfram/Mathematica.app
 See [CommandLineHelp.md](./docs/CommandLineHelp.md) for more information on the
 `wolfram-app-discovery` command-line interface.
 
+### Scenario: Building a LibraryLink library
+
+Suppose you have the following C program that provides a function via the
+Wolfram *LibraryLink* interface, which you would like to compile and call from
+Wolfram Language:
+
+```c
+#include "WolframLibrary.h"
+
+/* Adds one to the input, returning the result  */
+DLLEXPORT int increment(WolframLibraryData libData, mint argc, MArgument *args, MArgument result) {
+    mint arg = MArgument_getInteger(args[0]);
+    MArgument_setInteger(result, arg + 1);
+    return LIBRARY_NO_ERROR;
+}
+```
+
+To successfully compile this program, a C compiler will need to be able to find
+the included `"WolframLibrary.h"` header file. We can use `wolfram-app-discovery`
+to get the appropriate value:
+
+```shell
+# Get the LibraryLink includes directory
+$ export WOLFRAM_C_INCLUDES=`wolfram-app-discovery default --raw-value library-link-c-includes-directory`
+```
+
+And then pass that value to a C compiler:
+
+```shell
+# Invoke the C compiler
+$ clang increment.c -I$WOLFRAM_C_INCLUDES -shared -o libincrement
+```
+
+The resulting compiled library can be loaded into Wolfram Language using
+[`LibraryFunctionLoad`](https://reference.wolfram.com/language/ref/LibraryFunctionLoad)
+and then called:
+
+```wolfram
+func = LibraryFunctionLoad["~/libincrement", "increment", {Integer}, Integer];
+
+func[5]  (* Returns 6 *)
+```
+
 ## Installing `wolfram-app-discovery`
 
 [**Download `wolfram-app-discovery` releases.**](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases)

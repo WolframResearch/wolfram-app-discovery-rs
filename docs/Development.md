@@ -53,7 +53,7 @@ made.
 
 ### `wolfram-app-discovery` CLI
 
-##### `wolfram-app-discovery default`
+#### `wolfram-app-discovery default`
 
 **Typical usage:**
 
@@ -86,7 +86,7 @@ wolfram-app-discovery default --properties app-type --all-properties
 wolfram-app-discovery default --raw-value library-link-c-includes-directory --all-properties
 ```
 
-##### `wolfram-app-discovery list`
+#### `wolfram-app-discovery list`
 
 ```shell
 wolfram-app-discovery list

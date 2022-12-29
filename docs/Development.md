@@ -91,6 +91,7 @@ wolfram-app-discovery default --raw-value library-link-c-includes-directory --al
 ```shell
 wolfram-app-discovery list
 wolfram-app-discovery list --app-type mathematica
+wolfram-app-discovery list --app-type engine,desktop
 wolfram-app-discovery list --format csv
 wolfram-app-discovery list --all-properties
 wolfram-app-discovery list --all-properties --format csv

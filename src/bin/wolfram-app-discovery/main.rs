@@ -66,7 +66,12 @@ enum Command {
 #[derive(Parser)]
 struct DiscoveryOpts {
     /// Wolfram application types to include.
-    #[arg(long = "app-type", value_enum)]
+    #[arg(
+        long = "app-type",
+        // Allow `--properties=prop1,prop2,etc`
+        value_delimiter = ',',
+        value_enum
+    )]
     app_types: Vec<WolframAppType>,
 
     #[clap(flatten)]

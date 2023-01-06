@@ -53,7 +53,7 @@ fn do_discover_all() -> Result<Vec<WolframApp>, std::io::Error> {
 /// Wolfram apps on Linux are by default installed to a location with the
 /// following structure:
 ///
-/// ```
+/// ```text
 /// /usr/local/Wolfram/<Mathematica|WolframEngine|...>/<MAJOR.MINOR>/
 /// ```
 ///

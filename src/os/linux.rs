@@ -39,7 +39,7 @@ fn do_discover_all() -> Result<Vec<WolframApp>, std::io::Error> {
                 // other directories for potentially valid Wolfram apps.
                 crate::warning(&format!(
                     "error looking for Wolfram apps in '{}': {io_err}",
-                    root.display()
+                    apps_dir.display()
                 ))
             },
         }
@@ -69,7 +69,7 @@ fn get_apps_in_wolfram_apps_dir(
     apps_dir: &Path,
     apps: &mut Vec<WolframApp>,
 ) -> Result<(), std::io::Error> {
-    for app_type_dir in fs::read_dir(&root)? {
+    for app_type_dir in fs::read_dir(&apps_dir)? {
         let app_type_dir = app_type_dir?.path();
 
         if !app_type_dir.is_dir() {

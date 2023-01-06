@@ -22,11 +22,53 @@ fn do_discover_all() -> Result<Vec<WolframApp>, std::io::Error> {
     //     /usr/local/Wolfram/<Mathematica|WolframEngine|...>/<MAJOR.MINOR>/
 
     // TODO(polish): Are there any other root locations that Wolfram products
-    //               are installed to by default on Linux?
-    let root = Path::new("/usr/local/Wolfram");
+    //               are or used to be installed to by default on Linux?
+    #[rustfmt::skip]
+    let roots = [
+        Path::new("/usr/local/Wolfram"),
+        Path::new("/opt/Wolfram"),
+    ];
 
     let mut apps = Vec::new();
 
+    for apps_dir in roots {
+        match get_apps_in_wolfram_apps_dir(apps_dir, &mut apps) {
+            Ok(()) => (),
+            Err(io_err) => {
+                // Log this error as a warning, and continue looking in
+                // other directories for potentially valid Wolfram apps.
+                crate::warning(&format!(
+                    "error looking for Wolfram apps in '{}': {io_err}",
+                    root.display()
+                ))
+            },
+        }
+    }
+
+    Ok(apps)
+}
+
+/// Find Wolfram apps installed into a shared Wolfram "apps directory".
+///
+/// Wolfram apps on Linux are by default installed to a location with the
+/// following structure:
+///
+/// ```
+/// /usr/local/Wolfram/<Mathematica|WolframEngine|...>/<MAJOR.MINOR>/
+/// ```
+///
+/// where `/usr/local/Wolfram` is an "apps directory" that itself contains
+/// other Wolfram applications, where the application type and version number
+/// is encoded in their location inside the apps directory.
+///
+/// Some concrete examples:
+///
+/// * `/usr/local/Wolfram/Mathematica/13.1/` — the `$InstallationDirectory` for a Mathematica v13.1 app
+/// * `/usr/local/Wolfram/WolframEngine/13.2/` — the `$InstallationDirectory` for a Wolfram Engine v13.2 app
+fn get_apps_in_wolfram_apps_dir(
+    apps_dir: &Path,
+    apps: &mut Vec<WolframApp>,
+) -> Result<(), std::io::Error> {
     for app_type_dir in fs::read_dir(&root)? {
         let app_type_dir = app_type_dir?.path();
 
@@ -43,12 +85,19 @@ fn do_discover_all() -> Result<Vec<WolframApp>, std::io::Error> {
 
             match from_app_directory(&app_version_dir) {
                 Ok(app) => apps.push(app),
-                Err(err) => todo!("error: {err:?}"),
+                Err(err) => {
+                    // Log this error as a warning, but continue looking in
+                    // other directories for potentially valid Wolfram apps.
+                    crate::warning(&format!(
+                        "unable to interpret directory '{}' as Wolfram app: {err}",
+                        app_version_dir.display()
+                    ))
+                },
             }
         }
     }
 
-    Ok(apps)
+    Ok(())
 }
 
 //======================================

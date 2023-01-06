@@ -9,7 +9,7 @@ pub fn discover_all() -> Vec<WolframApp> {
     match do_discover_all() {
         Ok(apps) => apps,
         Err(err) => {
-            crate::warning("IO error discovering apps: {err}");
+            crate::warning(&format!("IO error discovering apps: {err}"));
             Vec::new()
         },
     }
@@ -205,7 +205,7 @@ fn parse_wolfram_kernel_script_contents(
         &["#", "", "Mathematica", version_string, "Kernel", "command", "file"] => {
             version_string
         },
-        other => return Ok(None),
+        _other => return Ok(None),
     };
 
     let app_version = AppVersion::parse(version_string)?;

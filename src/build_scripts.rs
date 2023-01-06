@@ -214,17 +214,8 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
 pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
-    let static_archive_name = match OperatingSystem::target_os() {
-        // Note: In theory, this can also vary based on the WSTP library 'interface' version
-        //       (currently v4). But that has not changed in a long time. If the interface
-        //       version does change, this logic should be updated to also check the WL
-        //       version.
-        OperatingSystem::MacOS => "libWSTPi4.a",
-        OperatingSystem::Windows => "wstp64i4s.lib",
-        OperatingSystem::Linux | OperatingSystem::Other => {
-            return Err(platform_unsupported_error("wstp_static_library_path()").into());
-        },
-    };
+    let static_archive_name =
+        wstp_static_library_file_name(OperatingSystem::target_os())?;
 
     let dir = match wstp_compiler_additions_directory(app) {
         Ok(dir) => Some(dir),
@@ -282,4 +273,25 @@ fn get_env_resource(var: &'static str, deprecated: bool) -> Option<Discovery> {
     }
 
     None
+}
+
+// Note: In theory, this can also vary based on the WSTP library 'interface' version
+//       (currently v4). But that has not changed in a long time. If the interface
+//       version does change, this logic should be updated to also check the WL
+//       version.
+pub(crate) fn wstp_static_library_file_name(
+    os: OperatingSystem,
+) -> Result<&'static str, Error> {
+    let static_archive_name = match os {
+        OperatingSystem::MacOS => "libWSTPi4.a",
+        OperatingSystem::Windows => "wstp64i4s.lib",
+        OperatingSystem::Linux => "libWSTP64i4.a",
+        OperatingSystem::Other => {
+            return Err(platform_unsupported_error(
+                "wstp_static_library_file_name()",
+            ));
+        },
+    };
+
+    Ok(static_archive_name)
 }

@@ -913,18 +913,8 @@ impl WolframApp {
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
-        let static_archive_name = match OperatingSystem::target_os() {
-            // Note: In theory, this can also vary based on the WSTP library 'interface' version
-            //       (currently v4). But that has not changed in a long time. If the interface
-            //       version does change, this logic should be updated to also check the WL
-            //       version.
-            OperatingSystem::MacOS => "libWSTPi4.a",
-            OperatingSystem::Windows => "wstp64i4s.lib",
-            OperatingSystem::Linux => "libWSTP64i4.a",
-            OperatingSystem::Other => {
-                return Err(platform_unsupported_error("wstp_static_library_path()"));
-            },
-        };
+        let static_archive_name =
+            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?;
 
         let lib = self
             .wstp_compiler_additions_directory()?

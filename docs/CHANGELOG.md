@@ -8,6 +8,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.4.1] — 2023-01-06
+
+### Added
+
+* Add new
+  [`.github/workflows/build-executables.yml`](https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/v0.4.1/.github/workflows/build-executables.yml)
+  file, which was used to retroactively build precompiled binaries for the
+  [v0.4.0 release](https://github.com/WolframResearch/wolfram-app-discovery-rs/releases/tag/v0.4.0)
+  of the `wolfram-app-discovery` command-line tool. ([#31], [#32], [#33])
+
+* Improve README.md with new 'CLI Documentation' quick link and
+  'Installing wolfram-app-discovery' sections, and other minor link and wording
+  changes. ([#34], [#35])
+
+* Make major improvements to the `wolfram-app-discovery` command-line tool. ([#36], [#39])
+
+  - The following options are now supported on the `default`, `list`, and `inspect`
+    subcommands:
+
+    * `--property <PROPERTIES>` (alias: `--properties`)
+    * `--all-properties`
+    * `--format <FORMAT>`
+
+    If `--format csv` is specified, the output will be written in the CSV format.
+
+    If `--property` is specified, only the properties listed as an argument will be
+    included in the output.
+
+    If `--all-properties` is specified, all available properties will be included in
+    the output.
+
+  - The `default` and `inspect` subcommands now support a `--raw-value <PROPERTY>`
+    option, which will cause only the value of the specified property to be
+    printed.
+
+    This is useful when using `wolfram-app-discovery` as part of a
+    compilation workflow or build script. For example:
+
+    ```shell
+    # Get the LibraryLink includes directory
+    $ export WOLFRAM_C_INCLUDES=`wolfram-app-discovery default --raw-value library-link-c-includes-directory`
+
+    # Invoke a C compiler and provide the LibraryLink headers location
+    $ clang increment.c -I$WOLFRAM_C_INCLUDES -shared -o libincrement
+    ```
+
+  See [`docs/CommandLineHelp.md`][CommandLineHelp.md@v0.4.1] for complete
+  documentation on the `wolfram-app-discovery` command-line interface.
+
+* Add `/opt/Wolfram/` to list of app search locations used on Linux. ([#41])
+
+### Changed
+
+* Replaced custom logic with a dependency on
+  [`clap-markdown`](https://crates.io/crates/clap-markdown),
+  and used it to regenerate an improved
+  [`docs/CommandLineHelp.md`][CommandLineHelp.md@v0.4.1]. ([#30], [#38])
+
+
+### Fixed
+
+* Fix spurious warnings generated on macOS when no Wolfram applications of
+  a particular `WolframAppType` variant could be discovered. ([#37])
+
+* Fix missing support for Linux in
+  `wolfram_app_discovery::build_scripts::wstp_static_library_path()` ([#40])
+
+  This ought to have been fixed in [#28], but copy-pasted code meant the same
+  fix needed to be applied in two places, and only one was fixed in #28.
+
+  This was preventing the [`wstp-sys`](https://crates.io/crates/wstp-sys) crate
+  from compiling on Linux.
+
 
 
 ## [0.4.0] — 2022-12-14
@@ -210,6 +283,11 @@ Initial release of `wolfram-app-discovery`.
 
 
 
+<!-- Link anchors -->
+[CommandLineHelp.md@v0.4.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/blob/v0.4.1/docs/CommandLineHelp.md
+
+
+
 [#10]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/10
 [#14]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/14
 [#17]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/17
@@ -227,9 +305,24 @@ Initial release of `wolfram-app-discovery`.
 [#27]: https://github.com/WolframResearch/wolfram-app-discovery-rs/issues/27
 [#28]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/28
 
-<!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.0...HEAD
+<!-- v0.4.1 -->
+[#30]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/30
+[#31]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/31
+[#32]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/32
+[#33]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/33
+[#34]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/34
+[#35]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/35
+[#36]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/36
+[#37]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/37
+[#38]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/38
+[#39]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/39
+[#40]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/40
+[#41]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/41
 
+<!-- This needs to be updated for each tagged release. -->
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...HEAD
+
+[0.4.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.1...v0.2.2

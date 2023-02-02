@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+
+## [0.4.2] — 2023-02-02
+
+### Fixed
+
+* Workaround issue with Wolfram pre-release builds with app version numbers that
+  overflow `u32` version fields. ([#46])
+
+
+
 ## [0.4.1] — 2023-01-06
 
 ### Added
@@ -319,9 +329,14 @@ Initial release of `wolfram-app-discovery`.
 [#40]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/40
 [#41]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/41
 
-<!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...HEAD
+<!-- v0.4.2 -->
+[#46]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/46
 
+
+<!-- This needs to be updated for each tagged release. -->
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...HEAD
+
+[0.4.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.2.2...v0.3.0

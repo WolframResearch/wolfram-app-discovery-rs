@@ -441,12 +441,14 @@ impl AppVersion {
 
     fn parse(version: &str) -> Result<Self, Error> {
         fn parse(s: &str) -> Result<u32, Error> {
-            u32::from_str(s).map_err(|err| {
-                Error::other(format!(
-                    "invalid application version number component: '{}': {}",
-                    s, err
-                ))
-            })
+            u32::from_str(s).map_err(|err| make_error(s, err))
+        }
+
+        fn make_error(s: &str, err: std::num::ParseIntError) -> Error {
+            Error::other(format!(
+                "invalid application version number component: '{}': {}",
+                s, err
+            ))
         }
 
         let components: Vec<&str> = version.split(".").collect();
@@ -468,7 +470,27 @@ impl AppVersion {
                 revision: parse(revision)?,
 
                 minor_revision: None,
-                build_code: Some(parse(build_code)?),
+                // build_code: Some(parse(build_code)?),
+                build_code: match u32::from_str(build_code) {
+                    Ok(code) => Some(code),
+                    // FIXME(breaking):
+                    //   Change build_code to be able to represent internal
+                    //   build codes like '202302011100' (which are technically
+                    //   numeric, but overflow u32's).
+                    //
+                    //   The code below is a workaround bugfix to avoid hard
+                    //   erroring on WolframApp's with these build codes, with
+                    //   the contraint that this fix doesn't break semantic
+                    //   versioning compatibility by changing the build_code()
+                    //   return type.
+                    //
+                    //   This fix should be changed when then next major version
+                    //   release of wolfram-app-discovery is made.
+                    Err(err) if *err.kind() == std::num::IntErrorKind::PosOverflow => {
+                        None
+                    },
+                    Err(other) => return Err(make_error(build_code, other)),
+                },
             },
             // 3 components: [major.minor.revision]
             [major, minor, revision] => AppVersion {

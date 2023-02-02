@@ -26,7 +26,7 @@ use crate::{
     },
     Error, WolframApp,
 };
-use crate::{os::OperatingSystem, platform_unsupported_error, ErrorKind};
+use crate::{os::OperatingSystem, platform_unsupported_error};
 
 //======================================
 // API
@@ -169,11 +169,14 @@ pub fn wstp_compiler_additions_directory(
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
 pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
-    match wstp_compiler_additions_directory(app) {
-        // If this location came from `app`, ignore it and wait to call
-        // app.wstp_c_header_path() directory below.
-        Ok(Discovery::App(_)) => (),
-        Ok(Discovery::Env { variable, path }) => {
+    match wstp_compiler_additions_directory(app)? {
+        // If this location came from `app`, unwrap the app and return
+        // app.wstp_c_header_path() directly.
+        Discovery::App(_) => {
+            let path = app.unwrap().wstp_c_header_path()?;
+            return Ok(Discovery::App(path));
+        },
+        Discovery::Env { variable, path } => {
             let path = path.join("wstp.h");
 
             if !path.is_file() {
@@ -182,20 +185,7 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
 
             return Ok(Discovery::Env { variable, path });
         },
-        Err(Error(ErrorKind::Undiscoverable { .. })) => (),
-        Err(err) => return Err(err),
     }
-
-    if let Some(app) = app {
-        let path = app.wstp_c_header_path()?;
-
-        return Ok(Discovery::App(path));
-    }
-
-    Err(Error::undiscoverable(
-        "WSTP CompilerAdditions directory".to_owned(),
-        Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
-    ))
 }
 
 /// Discover the
@@ -211,11 +201,14 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
     let static_archive_name =
         wstp_static_library_file_name(OperatingSystem::target_os())?;
 
-    match wstp_compiler_additions_directory(app) {
-        // If this location came from `app`, ignore it and wait to call
-        // app.wstp_c_header_path() directory below.
-        Ok(Discovery::App(_)) => (),
-        Ok(Discovery::Env { variable, path }) => {
+    match wstp_compiler_additions_directory(app)? {
+        // If this location came from `app`, unwrap the app and return
+        // app.wstp_c_header_path() directly.
+        Discovery::App(_) => {
+            let path = app.unwrap().wstp_static_library_path()?;
+            return Ok(Discovery::App(path));
+        },
+        Discovery::Env { variable, path } => {
             let path = path.join(static_archive_name);
 
             if !path.is_file() {
@@ -226,20 +219,7 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
 
             return Ok(Discovery::Env { variable, path });
         },
-        Err(Error(ErrorKind::Undiscoverable { .. })) => (),
-        Err(err) => return Err(err),
     }
-
-    if let Some(app) = app {
-        let path = app.wstp_static_library_path()?;
-
-        return Ok(Discovery::App(path));
-    }
-
-    Err(Error::undiscoverable(
-        "WSTP CompilerAdditions directory".to_owned(),
-        Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
-    ))
 }
 
 //======================================

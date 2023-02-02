@@ -169,27 +169,21 @@ pub fn wstp_compiler_additions_directory(
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
 pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
-    let dir = match wstp_compiler_additions_directory(app) {
-        Ok(dir) => Some(dir),
-        Err(Error(ErrorKind::Undiscoverable { .. })) => None,
+    match wstp_compiler_additions_directory(app) {
+        // If this location came from `app`, ignore it and wait to call
+        // app.wstp_c_header_path() directory below.
+        Ok(Discovery::App(_)) => (),
+        Ok(Discovery::Env { variable, path }) => {
+            let path = path.join("wstp.h");
+
+            if !path.is_file() {
+                return Err(Error::unexpected_layout("wstp.h C header file", path));
+            }
+
+            return Ok(Discovery::Env { variable, path });
+        },
+        Err(Error(ErrorKind::Undiscoverable { .. })) => (),
         Err(err) => return Err(err),
-    };
-
-    if let Some(path) = dir {
-        match path {
-            // If this location came from `app`, ignore it and wait to call
-            // app.wstp_c_header_path() directory below.
-            Discovery::App(_) => (),
-            Discovery::Env { variable, path } => {
-                let path = path.join("wstp.h");
-
-                if !path.is_file() {
-                    return Err(Error::unexpected_layout("wstp.h C header file", path));
-                }
-
-                return Ok(Discovery::Env { variable, path });
-            },
-        }
     }
 
     if let Some(app) = app {
@@ -217,31 +211,23 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
     let static_archive_name =
         wstp_static_library_file_name(OperatingSystem::target_os())?;
 
-    let dir = match wstp_compiler_additions_directory(app) {
-        Ok(dir) => Some(dir),
-        Err(Error(ErrorKind::Undiscoverable { .. })) => None,
+    match wstp_compiler_additions_directory(app) {
+        // If this location came from `app`, ignore it and wait to call
+        // app.wstp_c_header_path() directory below.
+        Ok(Discovery::App(_)) => (),
+        Ok(Discovery::Env { variable, path }) => {
+            let path = path.join(static_archive_name);
+
+            if !path.is_file() {
+                return Err(
+                    Error::unexpected_layout("WSTP static library file", path).into()
+                );
+            }
+
+            return Ok(Discovery::Env { variable, path });
+        },
+        Err(Error(ErrorKind::Undiscoverable { .. })) => (),
         Err(err) => return Err(err),
-    };
-
-    if let Some(path) = dir {
-        match path {
-            // If this location came from `app`, ignore it and wait to call
-            // app.wstp_c_header_path() directory below.
-            Discovery::App(_) => (),
-            Discovery::Env { variable, path } => {
-                let path = path.join(static_archive_name);
-
-                if !path.is_file() {
-                    return Err(Error::unexpected_layout(
-                        "WSTP static library file",
-                        path,
-                    )
-                    .into());
-                }
-
-                return Ok(Discovery::Env { variable, path });
-            },
-        }
     }
 
     if let Some(app) = app {

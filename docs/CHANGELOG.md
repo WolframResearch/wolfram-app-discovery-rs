@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.4.3] — 2023-02-03
+
+### Added
+
+* Added logging output along discovery success and error code paths using the
+  [`log`](https://crates.io/crates/log) crate logging facade. ([#48])
+
+  Programs making use of wolfram-app-discovery can enable logging in their
+  application by initializing a logging implemenation compatible with the `log`
+  crate. [`env_logger`](https://crates.io/crates/env_logger) is a common choice
+  for logging that can be customized via the `RUST_LOG` environment variable.
+
+  **Logging in Rust build scripts**
+
+  Rust crate `build.rs` scripts using wolfram-app-discovery are strongly
+  encouraged to use `env_logger` to make debugging build script behavior easier.
+
+  Adding logging to a `build.rs` script can be done by adding a dependency on
+  `env_logger` to Cargo.toml:
+
+  ```toml
+  [build-dependencies]
+  env_logger = "0.10.0"
+  ```
+
+  and initializing `env_logger` at the beginning of `build.rs/main()`:
+
+  ```rust
+  fn main() {
+      env_logger::init();
+
+      // ...
+  }
+  ```
+
+  Logging output can be enabled in subsequent crate builds by executing:
+
+  ```shell
+  $ RUST_LOG=trace cargo build
+  ```
+
+  *Note that `cargo` will suppress output printed by build scripts by default
+  unless the build script fails with an error (which matches the expected usage
+  of logging output: it is most useful when something goes wrong). Verbose
+  `cargo` output (including logging) can be enabled using `cargo -vv`.*
+
+
+
 ## [0.4.2] — 2023-02-02
 
 ### Fixed
@@ -332,10 +380,14 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.2 -->
 [#46]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/46
 
+<!-- v0.4.3 -->
+[#48]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/48
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...HEAD
 
+[0.4.3]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.3.0...v0.4.0

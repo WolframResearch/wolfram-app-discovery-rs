@@ -43,7 +43,7 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
     return linux::from_app_directory(dir);
 
     #[allow(unreachable_code)]
-    Err(crate::platform_unsupported_error(
+    Err(Error::platform_unsupported(
         "WolframApp::from_app_directory()",
     ))
 }

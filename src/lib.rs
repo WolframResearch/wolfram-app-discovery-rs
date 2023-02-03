@@ -70,6 +70,7 @@ use std::{
     str::FromStr,
 };
 
+use log::info;
 
 #[allow(deprecated)]
 use config::env_vars::{RUST_WOLFRAM_LOCATION, WOLFRAM_APP_DIRECTORY};
@@ -172,9 +173,21 @@ pub(crate) enum ErrorKind {
     /// The file system layout of the Wolfram installation did not have the
     /// expected structure, and a file or directory did not appear at the
     /// expected location.
-    UnexpectedLayout {
+    UnexpectedAppLayout {
         resource_name: &'static str,
+        app_installation_dir: PathBuf,
+        /// Path within `app_installation_dir` that was expected to exist, but
+        /// does not.
         path: PathBuf,
+    },
+    /// The non-app directory specified by the configuration environment
+    /// variable `env_var` does not contain a file at the expected location.
+    UnexpectedEnvironmentValueLayout {
+        resource_name: &'static str,
+        env_var: &'static str,
+        env_value: PathBuf,
+        /// Path within `env_value` that was expected to exist, but does not.
+        derived_path: PathBuf,
     },
     /// The app manually specified by an environment variable does not match the
     /// filter the app is expected to satisfy.
@@ -199,24 +212,89 @@ pub(crate) enum FilterError {
 
 impl Error {
     pub(crate) fn other(message: String) -> Self {
-        Error(ErrorKind::Other(message))
+        let err = Error(ErrorKind::Other(message));
+        info!("discovery error: {err}");
+        err
     }
 
     pub(crate) fn undiscoverable(
         resource: String,
         environment_variable: Option<&'static str>,
     ) -> Self {
-        Error(ErrorKind::Undiscoverable {
+        let err = Error(ErrorKind::Undiscoverable {
             resource,
             environment_variable,
-        })
+        });
+        info!("discovery error: {err}");
+        err
     }
 
-    pub(crate) fn unexpected_layout(resource_name: &'static str, path: PathBuf) -> Self {
-        Error(ErrorKind::UnexpectedLayout {
+    pub(crate) fn unexpected_app_layout(
+        resource_name: &'static str,
+        app: &WolframApp,
+        path: PathBuf,
+    ) -> Self {
+        let err = Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
+            app_installation_dir: app.installation_directory(),
             path,
-        })
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    /// Alternative to [`Error::unexpected_app_layout()`], used when a valid
+    /// [`WolframApp`] hasn't even been constructed yet.
+    #[allow(dead_code)]
+    pub(crate) fn unexpected_app_layout_2(
+        resource_name: &'static str,
+        app_installation_dir: PathBuf,
+        path: PathBuf,
+    ) -> Self {
+        let err = Error(ErrorKind::UnexpectedAppLayout {
+            resource_name,
+            app_installation_dir,
+            path,
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn unexpected_env_layout(
+        resource_name: &'static str,
+        env_var: &'static str,
+        env_value: PathBuf,
+        derived_path: PathBuf,
+    ) -> Self {
+        let err = Error(ErrorKind::UnexpectedEnvironmentValueLayout {
+            resource_name,
+            env_var,
+            env_value,
+            derived_path,
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn platform_unsupported(name: &str) -> Self {
+        let err = Error(ErrorKind::UnsupportedPlatform {
+            operation: name.to_owned(),
+            target_os: OperatingSystem::target_os(),
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn app_does_not_match_filter(
+        environment_variable: &'static str,
+        filter_err: FilterError,
+    ) -> Self {
+        let err = Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
+            environment_variable,
+            filter_err,
+        });
+        info!("discovery error: {err}");
+        err
     }
 }
 
@@ -560,7 +638,16 @@ impl WolframApp {
     ///
     /// [$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
     pub fn try_default() -> Result<Self, Error> {
-        WolframApp::try_default_with_filter(&Filter::allow_all())
+        let result = WolframApp::try_default_with_filter(&Filter::allow_all());
+
+        match &result {
+            Ok(app) => {
+                info!("App discovery succeeded: {}", app.app_directory().display())
+            },
+            Err(err) => info!("App discovery failed: {}", err),
+        }
+
+        result
     }
 
     #[doc(hidden)]
@@ -589,10 +676,10 @@ impl WolframApp {
             // because it doesn't satisfy the filter, but we can respect it by informing
             // them via an error instead of silently ignoring their choice.
             if let Err(filter_err) = filter.check_app(&app) {
-                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
-                    environment_variable: RUST_WOLFRAM_LOCATION,
+                return Err(Error::app_does_not_match_filter(
+                    RUST_WOLFRAM_LOCATION,
                     filter_err,
-                }));
+                ));
             }
 
             return Ok(app);
@@ -608,10 +695,10 @@ impl WolframApp {
             let app = WolframApp::from_app_directory(dir)?;
 
             if let Err(filter_err) = filter.check_app(&app) {
-                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
-                    environment_variable: WOLFRAM_APP_DIRECTORY,
+                return Err(Error::app_does_not_match_filter(
+                    WOLFRAM_APP_DIRECTORY,
                     filter_err,
-                }));
+                ));
             }
 
             return Ok(app);
@@ -707,7 +794,7 @@ impl WolframApp {
                 location
             },
             OperatingSystem::Linux | OperatingSystem::Other => {
-                return Err(platform_unsupported_error(
+                return Err(Error::platform_unsupported(
                     "WolframApp::from_installation_directory()",
                 ));
             },
@@ -829,7 +916,7 @@ impl WolframApp {
             OperatingSystem::Other => {
                 panic!(
                     "{}",
-                    platform_unsupported_error("WolframApp::installation_directory()",)
+                    Error::platform_unsupported("WolframApp::installation_directory()",)
                 )
             },
         }
@@ -864,12 +951,16 @@ impl WolframApp {
                     .join("WolframKernel")
             },
             OperatingSystem::Other => {
-                return Err(platform_unsupported_error("kernel_executable_path()"));
+                return Err(Error::platform_unsupported("kernel_executable_path()"));
             },
         };
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("WolframKernel executable", path));
+            return Err(Error::unexpected_app_layout(
+                "WolframKernel executable",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -897,7 +988,7 @@ impl WolframApp {
                     .join("wolframscript")
             },
             OperatingSystem::Other => {
-                return Err(platform_unsupported_error(
+                return Err(Error::platform_unsupported(
                     "wolframscript_executable_path()",
                 ));
             },
@@ -906,7 +997,11 @@ impl WolframApp {
         let path = self.installation_directory().join(&path);
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("wolframscript executable", path));
+            return Err(Error::unexpected_app_layout(
+                "wolframscript executable",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -922,7 +1017,11 @@ impl WolframApp {
         let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("wstp.h C header file", path));
+            return Err(Error::unexpected_app_layout(
+                "wstp.h C header file",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -943,7 +1042,11 @@ impl WolframApp {
             .join(static_archive_name);
 
         if !lib.is_file() {
-            return Err(Error::unexpected_layout("WSTP static library file ", lib));
+            return Err(Error::unexpected_app_layout(
+                "WSTP static library file ",
+                self,
+                lib,
+            ));
         }
 
         Ok(lib)
@@ -974,8 +1077,9 @@ impl WolframApp {
             .join("C");
 
         if !path.is_dir() {
-            return Err(Error::unexpected_layout(
+            return Err(Error::unexpected_app_layout(
                 "LibraryLink C header includes directory",
+                self,
                 path,
             ));
         }
@@ -1060,8 +1164,9 @@ impl WolframApp {
             .join("CompilerAdditions");
 
         if !path.is_dir() {
-            return Err(Error::unexpected_layout(
+            return Err(Error::unexpected_app_layout(
                 "WSTP CompilerAdditions directory",
+                self,
                 path,
             ));
         }
@@ -1083,13 +1188,6 @@ impl WolframApp {
 //----------------------------------
 // Utilities
 //----------------------------------
-
-fn platform_unsupported_error(name: &str) -> Error {
-    Error(ErrorKind::UnsupportedPlatform {
-        operation: name.to_owned(),
-        target_os: OperatingSystem::target_os(),
-    })
-}
 
 pub(crate) fn print_platform_unimplemented_warning(op: &str) {
     eprintln!(
@@ -1248,16 +1346,30 @@ impl Display for ErrorKind {
                 Some(var) => write!(f, "unable to locate {resource}. Hint: try setting {var}"),
                 None => write!(f, "unable to locate {resource}"),
             },
-            ErrorKind::UnexpectedLayout {
+            ErrorKind::UnexpectedAppLayout {
                 resource_name,
+                app_installation_dir,
                 path,
             } => {
                 write!(
                     f,
-                    "{resource_name} does not exist in the expected location: {}",
+                    "in app at '{}', {resource_name} does not exist at the expected location: {}",
+                    app_installation_dir.display(),
                     path.display()
                 )
             },
+            ErrorKind::UnexpectedEnvironmentValueLayout {
+                resource_name,
+                env_var,
+                env_value,
+                derived_path
+            } => write!(
+                f,
+                "{resource_name} does not exist at expected location (derived from env config: {}={}): {}",
+                env_var,
+                env_value.display(),
+                derived_path.display()
+            ),
             ErrorKind::SpecifiedAppDoesNotMatchFilter {
                 environment_variable: env_var,
                 filter_err,

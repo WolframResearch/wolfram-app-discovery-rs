@@ -264,6 +264,13 @@ impl Error {
             derived_path,
         })
     }
+
+    pub(crate) fn platform_unsupported(name: &str) -> Self {
+        Error(ErrorKind::UnsupportedPlatform {
+            operation: name.to_owned(),
+            target_os: OperatingSystem::target_os(),
+        })
+    }
 }
 
 impl std::error::Error for Error {}
@@ -753,7 +760,7 @@ impl WolframApp {
                 location
             },
             OperatingSystem::Linux | OperatingSystem::Other => {
-                return Err(platform_unsupported_error(
+                return Err(Error::platform_unsupported(
                     "WolframApp::from_installation_directory()",
                 ));
             },
@@ -875,7 +882,7 @@ impl WolframApp {
             OperatingSystem::Other => {
                 panic!(
                     "{}",
-                    platform_unsupported_error("WolframApp::installation_directory()",)
+                    Error::platform_unsupported("WolframApp::installation_directory()",)
                 )
             },
         }
@@ -910,7 +917,7 @@ impl WolframApp {
                     .join("WolframKernel")
             },
             OperatingSystem::Other => {
-                return Err(platform_unsupported_error("kernel_executable_path()"));
+                return Err(Error::platform_unsupported("kernel_executable_path()"));
             },
         };
 
@@ -947,7 +954,7 @@ impl WolframApp {
                     .join("wolframscript")
             },
             OperatingSystem::Other => {
-                return Err(platform_unsupported_error(
+                return Err(Error::platform_unsupported(
                     "wolframscript_executable_path()",
                 ));
             },
@@ -1147,13 +1154,6 @@ impl WolframApp {
 //----------------------------------
 // Utilities
 //----------------------------------
-
-fn platform_unsupported_error(name: &str) -> Error {
-    Error(ErrorKind::UnsupportedPlatform {
-        operation: name.to_owned(),
-        target_os: OperatingSystem::target_os(),
-    })
-}
 
 pub(crate) fn print_platform_unimplemented_warning(op: &str) {
     eprintln!(

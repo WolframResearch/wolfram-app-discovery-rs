@@ -24,9 +24,9 @@ use crate::{
             WSTP_COMPILER_ADDITIONS, WSTP_COMPILER_ADDITIONS_DIRECTORY,
         },
     },
+    os::OperatingSystem,
     Error, WolframApp,
 };
-use crate::{os::OperatingSystem, platform_unsupported_error};
 
 //======================================
 // API
@@ -262,7 +262,7 @@ pub(crate) fn wstp_static_library_file_name(
         OperatingSystem::Windows => "wstp64i4s.lib",
         OperatingSystem::Linux => "libWSTP64i4.a",
         OperatingSystem::Other => {
-            return Err(platform_unsupported_error(
+            return Err(Error::platform_unsupported(
                 "wstp_static_library_file_name()",
             ));
         },

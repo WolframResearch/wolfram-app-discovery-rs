@@ -70,6 +70,7 @@ use std::{
     str::FromStr,
 };
 
+use log::info;
 
 #[allow(deprecated)]
 use config::env_vars::{RUST_WOLFRAM_LOCATION, WOLFRAM_APP_DIRECTORY};
@@ -211,17 +212,21 @@ pub(crate) enum FilterError {
 
 impl Error {
     pub(crate) fn other(message: String) -> Self {
-        Error(ErrorKind::Other(message))
+        let err = Error(ErrorKind::Other(message));
+        info!("discovery error: {err}");
+        err
     }
 
     pub(crate) fn undiscoverable(
         resource: String,
         environment_variable: Option<&'static str>,
     ) -> Self {
-        Error(ErrorKind::Undiscoverable {
+        let err = Error(ErrorKind::Undiscoverable {
             resource,
             environment_variable,
-        })
+        });
+        info!("discovery error: {err}");
+        err
     }
 
     pub(crate) fn unexpected_app_layout(
@@ -229,11 +234,13 @@ impl Error {
         app: &WolframApp,
         path: PathBuf,
     ) -> Self {
-        Error(ErrorKind::UnexpectedAppLayout {
+        let err = Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
             app_installation_dir: app.installation_directory(),
             path,
-        })
+        });
+        info!("discovery error: {err}");
+        err
     }
 
     /// Alternative to [`Error::unexpected_app_layout()`], used when a valid
@@ -244,11 +251,13 @@ impl Error {
         app_installation_dir: PathBuf,
         path: PathBuf,
     ) -> Self {
-        Error(ErrorKind::UnexpectedAppLayout {
+        let err = Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
             app_installation_dir,
             path,
-        })
+        });
+        info!("discovery error: {err}");
+        err
     }
 
     pub(crate) fn unexpected_env_layout(
@@ -257,19 +266,35 @@ impl Error {
         env_value: PathBuf,
         derived_path: PathBuf,
     ) -> Self {
-        Error(ErrorKind::UnexpectedEnvironmentValueLayout {
+        let err = Error(ErrorKind::UnexpectedEnvironmentValueLayout {
             resource_name,
             env_var,
             env_value,
             derived_path,
-        })
+        });
+        info!("discovery error: {err}");
+        err
     }
 
     pub(crate) fn platform_unsupported(name: &str) -> Self {
-        Error(ErrorKind::UnsupportedPlatform {
+        let err = Error(ErrorKind::UnsupportedPlatform {
             operation: name.to_owned(),
             target_os: OperatingSystem::target_os(),
-        })
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn app_does_not_match_filter(
+        environment_variable: &'static str,
+        filter_err: FilterError,
+    ) -> Self {
+        let err = Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
+            environment_variable,
+            filter_err,
+        });
+        info!("discovery error: {err}");
+        err
     }
 }
 
@@ -613,7 +638,16 @@ impl WolframApp {
     ///
     /// [$InstallationDirectory]: https://reference.wolfram.com/language/ref/$InstallationDirectory.html
     pub fn try_default() -> Result<Self, Error> {
-        WolframApp::try_default_with_filter(&Filter::allow_all())
+        let result = WolframApp::try_default_with_filter(&Filter::allow_all());
+
+        match &result {
+            Ok(app) => {
+                info!("App discovery succeeded: {}", app.app_directory().display())
+            },
+            Err(err) => info!("App discovery failed: {}", err),
+        }
+
+        result
     }
 
     #[doc(hidden)]
@@ -642,10 +676,10 @@ impl WolframApp {
             // because it doesn't satisfy the filter, but we can respect it by informing
             // them via an error instead of silently ignoring their choice.
             if let Err(filter_err) = filter.check_app(&app) {
-                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
-                    environment_variable: RUST_WOLFRAM_LOCATION,
+                return Err(Error::app_does_not_match_filter(
+                    RUST_WOLFRAM_LOCATION,
                     filter_err,
-                }));
+                ));
             }
 
             return Ok(app);
@@ -661,10 +695,10 @@ impl WolframApp {
             let app = WolframApp::from_app_directory(dir)?;
 
             if let Err(filter_err) = filter.check_app(&app) {
-                return Err(Error(ErrorKind::SpecifiedAppDoesNotMatchFilter {
-                    environment_variable: WOLFRAM_APP_DIRECTORY,
+                return Err(Error::app_does_not_match_filter(
+                    WOLFRAM_APP_DIRECTORY,
                     filter_err,
-                }));
+                ));
             }
 
             return Ok(app);

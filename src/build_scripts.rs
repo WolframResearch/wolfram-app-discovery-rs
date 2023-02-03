@@ -15,6 +15,8 @@
 
 use std::path::PathBuf;
 
+use log::{info, trace};
+
 #[allow(deprecated)]
 use crate::{
     config::{
@@ -88,26 +90,37 @@ impl Discovery {
 pub fn library_link_c_includes_directory(
     app: Option<&WolframApp>,
 ) -> Result<Discovery, Error> {
+    trace!("start library_link_c_includes_directory(app={app:?})");
+
     if let Some(resource) =
         get_env_resource(WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY, false)
     {
+        info!("discovered in env: {resource:?}");
         return Ok(resource);
     }
 
     if let Some(resource) = get_env_resource(WOLFRAM_C_INCLUDES, true) {
+        info!("discovered in env: {resource:?}");
         return Ok(resource);
     }
 
     if let Some(app) = app {
         let path = app.library_link_c_includes_directory()?;
 
+        #[rustfmt::skip]
+        info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
+
         return Ok(Discovery::App(path));
     }
 
-    Err(Error::undiscoverable(
+    let err = Error::undiscoverable(
         "LibraryLink C includes directory".to_owned(),
         Some(WOLFRAM_LIBRARY_LINK_C_INCLUDES_DIRECTORY),
-    ))
+    );
+
+    info!("discovery failed: {err}");
+
+    Err(err)
 }
 
 //======================================
@@ -136,25 +149,36 @@ pub fn library_link_c_includes_directory(
 pub fn wstp_compiler_additions_directory(
     app: Option<&WolframApp>,
 ) -> Result<Discovery, Error> {
+    trace!("start wstp_compiler_additions_directory(app={app:?})");
+
     if let Some(resource) = get_env_resource(WSTP_COMPILER_ADDITIONS_DIRECTORY, false) {
+        info!("discovered in env: {resource:?}");
         return Ok(resource);
     }
 
     #[allow(deprecated)]
     if let Some(resource) = get_env_resource(WSTP_COMPILER_ADDITIONS, true) {
+        info!("discovered in env: {resource:?}");
         return Ok(resource);
     }
 
     if let Some(app) = app {
         let path = app.wstp_compiler_additions_directory()?;
 
+        #[rustfmt::skip]
+        info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
+
         return Ok(Discovery::App(path));
     }
 
-    Err(Error::undiscoverable(
+    let err = Error::undiscoverable(
         "WSTP CompilerAdditions directory".to_owned(),
         Some(WSTP_COMPILER_ADDITIONS_DIRECTORY),
-    ))
+    );
+
+    info!("discovery failed: {err}");
+
+    Err(err)
 }
 
 /// Discover the
@@ -169,26 +193,35 @@ pub fn wstp_compiler_additions_directory(
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
 pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
+    trace!("start wstp_c_header_path(app={app:?})");
+
     match wstp_compiler_additions_directory(app)? {
         // If this location came from `app`, unwrap the app and return
         // app.wstp_c_header_path() directly.
         Discovery::App(_) => {
-            let path = app.unwrap().wstp_c_header_path()?;
+            let app = app.unwrap();
+            let path = app.wstp_c_header_path()?;
+            #[rustfmt::skip]
+            info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
             return Ok(Discovery::App(path));
         },
         Discovery::Env { variable, path } => {
             let wstp_h = path.join("wstp.h");
 
             if !wstp_h.is_file() {
-                return Err(Error::unexpected_env_layout(
+                let err = Error::unexpected_env_layout(
                     "wstp.h C header file",
                     variable,
                     path,
                     wstp_h,
-                ));
+                );
+                info!("discovery failed: {err}");
+                return Err(err);
             }
 
-            return Ok(Discovery::Env { variable, path });
+            let discovery = Discovery::Env { variable, path };
+            info!("discovered in env: {discovery:?}");
+            return Ok(discovery);
         },
     }
 }
@@ -203,6 +236,8 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
 /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
 /// to WSTP.*
 pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, Error> {
+    trace!("start wstp_static_library_path(app={app:?})");
+
     let static_archive_name =
         wstp_static_library_file_name(OperatingSystem::target_os())?;
 
@@ -210,23 +245,30 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
         // If this location came from `app`, unwrap the app and return
         // app.wstp_c_header_path() directly.
         Discovery::App(_) => {
-            let path = app.unwrap().wstp_static_library_path()?;
+            let app = app.unwrap();
+            let path = app.wstp_static_library_path()?;
+            #[rustfmt::skip]
+            info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
             return Ok(Discovery::App(path));
         },
         Discovery::Env { variable, path } => {
             let static_lib_path = path.join(static_archive_name);
 
             if !static_lib_path.is_file() {
-                return Err(Error::unexpected_env_layout(
+                let err = Error::unexpected_env_layout(
                     "WSTP static library file",
                     variable,
                     path,
                     static_lib_path,
                 )
-                .into());
+                .into();
+                info!("discovery failed: {err}");
+                return Err(err);
             }
 
-            return Ok(Discovery::Env { variable, path });
+            let discovery = Discovery::Env { variable, path };
+            info!("discovered in env: {discovery:?}");
+            return Ok(discovery);
         },
     }
 }

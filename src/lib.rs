@@ -172,9 +172,21 @@ pub(crate) enum ErrorKind {
     /// The file system layout of the Wolfram installation did not have the
     /// expected structure, and a file or directory did not appear at the
     /// expected location.
-    UnexpectedLayout {
+    UnexpectedAppLayout {
         resource_name: &'static str,
+        app_installation_dir: PathBuf,
+        /// Path within `app_installation_dir` that was expected to exist, but
+        /// does not.
         path: PathBuf,
+    },
+    /// The non-app directory specified by the configuration environment
+    /// variable `env_var` does not contain a file at the expected location.
+    UnexpectedEnvironmentValueLayout {
+        resource_name: &'static str,
+        env_var: &'static str,
+        env_value: PathBuf,
+        /// Path within `env_value` that was expected to exist, but does not.
+        derived_path: PathBuf,
     },
     /// The app manually specified by an environment variable does not match the
     /// filter the app is expected to satisfy.
@@ -212,10 +224,44 @@ impl Error {
         })
     }
 
-    pub(crate) fn unexpected_layout(resource_name: &'static str, path: PathBuf) -> Self {
-        Error(ErrorKind::UnexpectedLayout {
+    pub(crate) fn unexpected_app_layout(
+        resource_name: &'static str,
+        app: &WolframApp,
+        path: PathBuf,
+    ) -> Self {
+        Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
+            app_installation_dir: app.installation_directory(),
             path,
+        })
+    }
+
+    /// Alternative to [`Error::unexpected_app_layout()`], used when a valid
+    /// [`WolframApp`] hasn't even been constructed yet.
+    #[allow(dead_code)]
+    pub(crate) fn unexpected_app_layout_2(
+        resource_name: &'static str,
+        app_installation_dir: PathBuf,
+        path: PathBuf,
+    ) -> Self {
+        Error(ErrorKind::UnexpectedAppLayout {
+            resource_name,
+            app_installation_dir,
+            path,
+        })
+    }
+
+    pub(crate) fn unexpected_env_layout(
+        resource_name: &'static str,
+        env_var: &'static str,
+        env_value: PathBuf,
+        derived_path: PathBuf,
+    ) -> Self {
+        Error(ErrorKind::UnexpectedEnvironmentValueLayout {
+            resource_name,
+            env_var,
+            env_value,
+            derived_path,
         })
     }
 }
@@ -869,7 +915,11 @@ impl WolframApp {
         };
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("WolframKernel executable", path));
+            return Err(Error::unexpected_app_layout(
+                "WolframKernel executable",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -906,7 +956,11 @@ impl WolframApp {
         let path = self.installation_directory().join(&path);
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("wolframscript executable", path));
+            return Err(Error::unexpected_app_layout(
+                "wolframscript executable",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -922,7 +976,11 @@ impl WolframApp {
         let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
 
         if !path.is_file() {
-            return Err(Error::unexpected_layout("wstp.h C header file", path));
+            return Err(Error::unexpected_app_layout(
+                "wstp.h C header file",
+                self,
+                path,
+            ));
         }
 
         Ok(path)
@@ -943,7 +1001,11 @@ impl WolframApp {
             .join(static_archive_name);
 
         if !lib.is_file() {
-            return Err(Error::unexpected_layout("WSTP static library file ", lib));
+            return Err(Error::unexpected_app_layout(
+                "WSTP static library file ",
+                self,
+                lib,
+            ));
         }
 
         Ok(lib)
@@ -974,8 +1036,9 @@ impl WolframApp {
             .join("C");
 
         if !path.is_dir() {
-            return Err(Error::unexpected_layout(
+            return Err(Error::unexpected_app_layout(
                 "LibraryLink C header includes directory",
+                self,
                 path,
             ));
         }
@@ -1060,8 +1123,9 @@ impl WolframApp {
             .join("CompilerAdditions");
 
         if !path.is_dir() {
-            return Err(Error::unexpected_layout(
+            return Err(Error::unexpected_app_layout(
                 "WSTP CompilerAdditions directory",
+                self,
                 path,
             ));
         }
@@ -1248,16 +1312,30 @@ impl Display for ErrorKind {
                 Some(var) => write!(f, "unable to locate {resource}. Hint: try setting {var}"),
                 None => write!(f, "unable to locate {resource}"),
             },
-            ErrorKind::UnexpectedLayout {
+            ErrorKind::UnexpectedAppLayout {
                 resource_name,
+                app_installation_dir,
                 path,
             } => {
                 write!(
                     f,
-                    "{resource_name} does not exist in the expected location: {}",
+                    "in app at '{}', {resource_name} does not exist at the expected location: {}",
+                    app_installation_dir.display(),
                     path.display()
                 )
             },
+            ErrorKind::UnexpectedEnvironmentValueLayout {
+                resource_name,
+                env_var,
+                env_value,
+                derived_path
+            } => write!(
+                f,
+                "{resource_name} does not exist at expected location (derived from env config: {}={}): {}",
+                env_var,
+                env_value.display(),
+                derived_path.display()
+            ),
             ErrorKind::SpecifiedAppDoesNotMatchFilter {
                 environment_variable: env_var,
                 filter_err,

@@ -134,7 +134,11 @@ fn parse_app_info_from_files(
     let license_txt = app_directory.join("LICENSE.txt");
 
     if !license_txt.is_file() {
-        return Err(Error::unexpected_layout("LICENSE.txt file", license_txt));
+        return Err(Error::unexpected_app_layout_2(
+            "LICENSE.txt file",
+            app_directory.clone(),
+            license_txt,
+        ));
     }
 
     let contents: String = std::fs::read_to_string(&license_txt)
@@ -159,8 +163,9 @@ fn parse_app_info_from_files(
     let wolfram_kernel = app_directory.join("Executables").join("WolframKernel");
 
     if !wolfram_kernel.is_file() {
-        return Err(Error::unexpected_layout(
+        return Err(Error::unexpected_app_layout_2(
             "WolframKernel executable",
+            app_directory.clone(),
             wolfram_kernel,
         ));
     }

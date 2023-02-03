@@ -177,10 +177,15 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
             return Ok(Discovery::App(path));
         },
         Discovery::Env { variable, path } => {
-            let path = path.join("wstp.h");
+            let wstp_h = path.join("wstp.h");
 
-            if !path.is_file() {
-                return Err(Error::unexpected_layout("wstp.h C header file", path));
+            if !wstp_h.is_file() {
+                return Err(Error::unexpected_env_layout(
+                    "wstp.h C header file",
+                    variable,
+                    path,
+                    wstp_h,
+                ));
             }
 
             return Ok(Discovery::Env { variable, path });
@@ -209,12 +214,16 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
             return Ok(Discovery::App(path));
         },
         Discovery::Env { variable, path } => {
-            let path = path.join(static_archive_name);
+            let static_lib_path = path.join(static_archive_name);
 
-            if !path.is_file() {
-                return Err(
-                    Error::unexpected_layout("WSTP static library file", path).into()
-                );
+            if !static_lib_path.is_file() {
+                return Err(Error::unexpected_env_layout(
+                    "WSTP static library file",
+                    variable,
+                    path,
+                    static_lib_path,
+                )
+                .into());
             }
 
             return Ok(Discovery::Env { variable, path });

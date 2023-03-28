@@ -147,6 +147,7 @@ fn parse_app_info_from_files(
     // TODO(cleanup): Find a better way of determining the WolframAppType than
     //                parsing LICENSE.txt.
     let app_type = match contents.lines().next() {
+        Some("Wolfram Mathematica License Agreement") => WolframAppType::Mathematica,
         Some("Wolfram Mathematica® License Agreement") => WolframAppType::Mathematica,
         Some("Free Wolfram Engine(TM) for Developers: Terms and Conditions of Use") => WolframAppType::Engine,
         Some("Free Wolfram Engine™ for Developers: Terms and Conditions of Use") => WolframAppType::Engine,

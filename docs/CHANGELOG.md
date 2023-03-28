@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.4.4] — 2023-03-27
+
+### Fixed
+
+* Support discovery of older Mathematica versions on Linux. ([#52])
+
+  This fixes one problem described in [#51].
+
+
+
 ## [0.4.3] — 2023-02-03
 
 ### Added
@@ -383,10 +393,15 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.3 -->
 [#48]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/48
 
+<!-- v0.4.4 -->
+[#51]: https://github.com/WolframResearch/wolfram-app-discovery-rs/issues/51
+[#52]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/52
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...HEAD
 
+[0.4.4]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.0...v0.4.1

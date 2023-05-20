@@ -159,9 +159,11 @@ pub struct Filter {
 
 /// Wolfram app discovery error.
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct Error(ErrorKind);
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) enum ErrorKind {
     Undiscoverable {
         /// The thing that could not be located.
@@ -203,6 +205,7 @@ pub(crate) enum ErrorKind {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) enum FilterError {
     FilterDoesNotMatchAppType {
         app_type: WolframAppType,

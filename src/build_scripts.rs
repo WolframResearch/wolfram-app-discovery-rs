@@ -39,6 +39,7 @@ use crate::{
 ///
 /// Use [`Discovery::into_path_buf()`] to get the underlying file system path.
 #[derive(Clone, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum Discovery {
     /// Location came from the [`WolframApp`] passed to the lookup function.
     App(PathBuf),
@@ -219,7 +220,10 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
                 return Err(err);
             }
 
-            let discovery = Discovery::Env { variable, path };
+            let discovery = Discovery::Env {
+                variable,
+                path: wstp_h,
+            };
             info!("discovered in env: {discovery:?}");
             return Ok(discovery);
         },
@@ -266,7 +270,10 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
                 return Err(err);
             }
 
-            let discovery = Discovery::Env { variable, path };
+            let discovery = Discovery::Env {
+                variable,
+                path: static_lib_path,
+            };
             info!("discovered in env: {discovery:?}");
             return Ok(discovery);
         },
@@ -311,4 +318,57 @@ pub(crate) fn wstp_static_library_file_name(
     };
 
     Ok(static_archive_name)
+}
+
+//======================================
+// Tests
+//======================================
+
+#[test]
+fn test_wstp_c_header_path() {
+    use crate::ErrorKind;
+
+    //========================
+
+    std::env::remove_var("WSTP_COMPILER_ADDITIONS_DIRECTORY");
+
+    assert_eq!(
+        wstp_c_header_path(None),
+        Err(Error(ErrorKind::Undiscoverable {
+            resource: "WSTP CompilerAdditions directory".into(),
+            environment_variable: Some("WSTP_COMPILER_ADDITIONS_DIRECTORY".into())
+        }))
+    );
+
+    //========================
+
+    std::env::set_var("WSTP_COMPILER_ADDITIONS_DIRECTORY", std::env::temp_dir());
+
+    assert_eq!(
+        wstp_c_header_path(None),
+        Err(Error(ErrorKind::UnexpectedEnvironmentValueLayout {
+            resource_name: "wstp.h C header file".into(),
+            env_var: "WSTP_COMPILER_ADDITIONS_DIRECTORY".into(),
+            env_value: PathBuf::from(std::env::temp_dir().to_str().unwrap()),
+            derived_path: std::env::temp_dir().join("wstp.h")
+        }))
+    );
+
+    //========================
+
+    // Set WSTP_COMPILER_ADDITIONS_DIRECTORY to a valid value by assuming we
+    // can discovery an installed WolframApp that has one.
+    let compiler_additions_dir = WolframApp::try_default()
+        .unwrap()
+        .wstp_compiler_additions_directory()
+        .unwrap();
+    std::env::set_var("WSTP_COMPILER_ADDITIONS_DIRECTORY", &compiler_additions_dir);
+
+    assert_eq!(
+        wstp_c_header_path(None),
+        Ok(Discovery::Env {
+            variable: "WSTP_COMPILER_ADDITIONS_DIRECTORY",
+            path: compiler_additions_dir.join("wstp.h")
+        })
+    );
 }

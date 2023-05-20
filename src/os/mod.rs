@@ -71,7 +71,7 @@ pub fn from_app_directory(dir: &PathBuf) -> Result<WolframApp, Error> {
 ///
 /// Using an enum ensures that all variants are handled in any place where
 /// platform-specific logic is required.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum OperatingSystem {
     MacOS,
     Windows,

@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+
+## [0.4.5] — 2023-05-19
+
+### Fixed
+
+* Fixed `wstp_c_header_path()` and `wstp_static_library_path()` in the
+  `wolfram_app_discovery::build_scripts` module returning the path to the
+  CompilerAdditions directory instead of, respectively, the path to wstp.h and
+  the WSTP static library. ([#58])
+
+
+
 ## [0.4.4] — 2023-03-27
 
 ### Fixed
@@ -397,10 +409,14 @@ Initial release of `wolfram-app-discovery`.
 [#51]: https://github.com/WolframResearch/wolfram-app-discovery-rs/issues/51
 [#52]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/52
 
+<!-- v0.4.5 -->
+[#58]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/58
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...HEAD
 
+[0.4.5]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.1...v0.4.2

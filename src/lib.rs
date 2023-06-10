@@ -55,6 +55,9 @@ pub mod config;
 
 mod os;
 
+#[cfg(test)]
+mod tests;
+
 #[doc(hidden)]
 mod test_readme {
     // Ensure that doc tests in the README.md file get run.
@@ -472,6 +475,26 @@ impl WolframAppType {
 }
 
 impl WolframVersion {
+    /// Construct a new [`WolframVersion`].
+    ///
+    /// `WolframVersion` instances can be compared:
+    ///
+    /// ```
+    /// use wolfram_app_discovery::WolframVersion;
+    ///
+    /// let v13_2 = WolframVersion::new(13, 2, 0);
+    /// let v13_3 = WolframVersion::new(13, 3, 0);
+    ///
+    /// assert!(v13_2 < v13_3);
+    /// ```
+    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+        WolframVersion {
+            major,
+            minor,
+            patch,
+        }
+    }
+
     /// First component of [`$VersionNumber`][ref/$VersionNumber].
     ///
     /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html

@@ -487,7 +487,7 @@ impl WolframVersion {
     ///
     /// assert!(v13_2 < v13_3);
     /// ```
-    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+    pub const fn new(major: u32, minor: u32, patch: u32) -> Self {
         WolframVersion {
             major,
             minor,
@@ -498,48 +498,48 @@ impl WolframVersion {
     /// First component of [`$VersionNumber`][ref/$VersionNumber].
     ///
     /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
-    pub fn major(&self) -> u32 {
+    pub const fn major(&self) -> u32 {
         self.major
     }
 
     /// Second component of [`$VersionNumber`][ref/$VersionNumber].
     ///
     /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
-    pub fn minor(&self) -> u32 {
+    pub const fn minor(&self) -> u32 {
         self.minor
     }
 
     /// [`$ReleaseNumber`][ref/$ReleaseNumber]
     ///
     /// [ref/$ReleaseNumber]: https://reference.wolfram.com/language/ref/$ReleaseNumber.html
-    pub fn patch(&self) -> u32 {
+    pub const fn patch(&self) -> u32 {
         self.patch
     }
 }
 
 impl AppVersion {
     #[allow(missing_docs)]
-    pub fn major(&self) -> u32 {
+    pub const fn major(&self) -> u32 {
         self.major
     }
 
     #[allow(missing_docs)]
-    pub fn minor(&self) -> u32 {
+    pub const fn minor(&self) -> u32 {
         self.minor
     }
 
     #[allow(missing_docs)]
-    pub fn revision(&self) -> u32 {
+    pub const fn revision(&self) -> u32 {
         self.revision
     }
 
     #[allow(missing_docs)]
-    pub fn minor_revision(&self) -> Option<u32> {
+    pub const fn minor_revision(&self) -> Option<u32> {
         self.minor_revision
     }
 
     #[allow(missing_docs)]
-    pub fn build_code(&self) -> Option<u32> {
+    pub const fn build_code(&self) -> Option<u32> {
         self.build_code
     }
 

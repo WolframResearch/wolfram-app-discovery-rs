@@ -1,6 +1,4 @@
-use std::path::PathBuf;
-
-use wolfram_app_discovery::WolframApp;
+use wolfram_app_discovery::{discover, WolframApp, WolframAppType};
 
 #[test]
 fn test_try_default() {
@@ -31,9 +29,11 @@ fn macos_wolfram_engine_contains_wolfram_player() {
         return;
     }
 
-    let engine =
-        WolframApp::from_app_directory(PathBuf::from("/Applications/Wolfram Engine.app"))
-            .unwrap();
+    let engine: WolframApp = discover()
+        .into_iter()
+        .filter(|app: &WolframApp| app.app_type() == WolframAppType::Engine)
+        .next()
+        .expect("unable to locate a Wolfram Engine installation");
 
     let install_dir = engine.installation_directory().to_str().unwrap().to_owned();
 
@@ -46,9 +46,11 @@ fn macos_wolfram_engine_properties() {
         return;
     }
 
-    let engine =
-        WolframApp::from_app_directory(PathBuf::from("/Applications/Wolfram Engine.app"))
-            .unwrap();
+    let engine: WolframApp = discover()
+        .into_iter()
+        .filter(|app: &WolframApp| app.app_type() == WolframAppType::Engine)
+        .next()
+        .expect("unable to locate a Wolfram Engine installation");
 
     engine.wolfram_version().unwrap();
     engine.wolframscript_executable_path().unwrap();

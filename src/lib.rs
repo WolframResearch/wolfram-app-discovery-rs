@@ -132,6 +132,42 @@ pub enum WolframAppType {
     // NOTE: When adding a new variant here, be sure to update WolframAppType::variants().
 }
 
+/// Possible values of [`$SystemID`][$SystemID].
+///
+/// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+#[allow(non_camel_case_types, missing_docs)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum SystemID {
+    /// `"MacOSX-x86-64"`
+    MacOSX_x86_64,
+    /// `"MacOSX-ARM64"`
+    MacOSX_ARM64,
+    /// `"Windows-x86-64"`
+    Windows_x86_64,
+    /// `"Linux-x86-64"`
+    Linux_x86_64,
+    /// `"Linux-ARM64"`
+    Linux_ARM64,
+    /// `"Linux-ARM"`
+    ///
+    /// E.g. Raspberry Pi
+    Linux_ARM,
+    /// `"iOS-ARM64"`
+    iOS_ARM64,
+    /// `"Android"`
+    Android,
+
+    /// `"Windows"`
+    ///
+    /// Legacy Windows 32-bit x86
+    Windows,
+    /// `"Linux"`
+    ///
+    /// Legacy Linux 32-bit x86
+    Linux,
+}
+
 /// Wolfram application version number.
 ///
 /// The major, minor, and revision components of most Wolfram applications will
@@ -356,46 +392,17 @@ pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
 /// [ref/$SystemID]: https://reference.wolfram.com/language/ref/$SystemID.html
 // TODO: What exactly does this function mean if the user tries to cross-compile a
 //       library?
-// TODO: Use env!("TARGET") here and just call system_id_from_target()?
-// TODO: Add an `enum SystemID` and use it here. It should have an
-//         `as_str(&self) -> &'static str`
-//       method.
+#[deprecated(note = "use `SystemID::current_rust_target()` instead")]
 pub fn target_system_id() -> &'static str {
-    match system_id_from_target(env!("TARGET")) {
-        Ok(system_id) => system_id,
-        Err(err) => panic!(
-            "target_system_id() has not been implemented for the current target: {err}"
-        ),
-    }
+    SystemID::current_rust_target().as_str()
 }
 
 /// Returns the System ID value that corresponds to the specified Rust
 /// [target triple](https://doc.rust-lang.org/nightly/rustc/platform-support.html), if
 /// any.
+#[deprecated(note = "use `SystemID::try_from_rust_target()` instead")]
 pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
-    let id = match rust_target {
-        // 64-bit x86
-        "x86_64-apple-darwin" => "MacOSX-x86-64",
-        "x86_64-unknown-linux-gnu" => "Linux-x86-64",
-        "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => "Windows-x86-64",
-
-        // 64-bit ARM
-        "aarch64-apple-darwin" => "MacOSX-ARM64",
-        "aarch64-apple-ios" | "aarch64-apple-ios-sim" => "iOS-ARM64", // iOS
-        "aarch64-unknown-linux-gnu" => "Linux-ARM64",
-        "aarch64-linux-android" => "Android",
-
-        // 32-bit ARM (e.g. Raspberry Pi)
-        "armv7-unknown-linux-gnueabihf" => "Linux-ARM",
-        _ => {
-            return Err(Error::other(format!(
-                "no System ID value associated with Rust target triple: {}",
-                rust_target
-            )))
-        },
-    };
-
-    Ok(id)
+    SystemID::try_from_rust_target(rust_target).map(|id| id.as_str())
 }
 
 //======================================
@@ -471,6 +478,134 @@ impl WolframAppType {
                 "Wolfram|Alpha Notebook Edition"
             },
         }
+    }
+}
+
+impl FromStr for SystemID {
+    type Err = ();
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let value = match string {
+            "MacOSX-x86-64" => SystemID::MacOSX_x86_64,
+            "MacOSX-ARM64" => SystemID::MacOSX_ARM64,
+            "Windows-x86-64" => SystemID::Windows_x86_64,
+            "Linux-x86-64" => SystemID::Linux_x86_64,
+            "Linux-ARM64" => SystemID::Linux_ARM64,
+            "Linux-ARM" => SystemID::Linux_ARM,
+            "iOS-ARM64" => SystemID::iOS_ARM64,
+            "Android" => SystemID::Android,
+            "Windows" => SystemID::Windows,
+            "Linux" => SystemID::Linux,
+            _ => return Err(()),
+        };
+
+        Ok(value)
+    }
+}
+
+impl SystemID {
+    /// [`$SystemID`][$SystemID] string value of this [`SystemID`].
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            SystemID::MacOSX_x86_64 => "MacOSX-x86-64",
+            SystemID::MacOSX_ARM64 => "MacOSX-ARM64",
+            SystemID::Windows_x86_64 => "Windows-x86-64",
+            SystemID::Linux_x86_64 => "Linux-x86-64",
+            SystemID::Linux_ARM64 => "Linux-ARM64",
+            SystemID::Linux_ARM => "Linux-ARM",
+            SystemID::iOS_ARM64 => "iOS-ARM64",
+            SystemID::Android => "Android",
+            SystemID::Windows => "Windows",
+            SystemID::Linux => "Linux",
+        }
+    }
+
+    /// Returns the [`$SystemID`][$SystemID] value associated with the Rust
+    /// target this code is being compiled for.
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the underlying call to
+    /// [`SystemID::try_current_rust_target()`] fails.
+    pub fn current_rust_target() -> SystemID {
+        match SystemID::try_current_rust_target() {
+            Ok(system_id) => system_id,
+            Err(err) => panic!(
+                "target_system_id() has not been implemented for the current target: {err}"
+            ),
+        }
+    }
+
+    /// Returns the [`$SystemID`][$SystemID] value associated with the Rust
+    /// target this code is being compiled for.
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error value if the current Rust target
+    /// does not map to a known Wolfram System ID value. This can happen if the
+    /// current Rust project is targeting a system that the Wolfram System does
+    /// not natively support.
+    pub fn try_current_rust_target() -> Result<SystemID, Error> {
+        SystemID::try_from_rust_target(env!("TARGET"))
+    }
+
+    /// Get the [`SystemID`] value corresponding to the specified
+    /// [Rust target triple][targets].
+    ///
+    /// ```
+    /// use wolfram_app_discovery::SystemID;
+    ///
+    /// assert_eq!(
+    ///     SystemID::try_from_rust_target("x86_64-apple-darwin").unwrap(),
+    ///     SystemID::MacOSX_x86_64
+    /// );
+    /// ```
+    ///
+    /// [targets]: https://doc.rust-lang.org/nightly/rustc/platform-support.html
+    pub fn try_from_rust_target(rust_target: &str) -> Result<SystemID, Error> {
+        #[rustfmt::skip]
+        let id = match rust_target {
+            //
+            // Rust Tier 1 Targets (all at time of writing)
+            //
+            "aarch64-unknown-linux-gnu" => SystemID::Linux_ARM64,
+            "i686-pc-windows-gnu" |
+            "i686-pc-windows-msvc" => SystemID::Windows,
+            "i686-unknown-linux-gnu" => SystemID::Linux,
+            "x86_64-apple-darwin" => SystemID::MacOSX_x86_64,
+            "x86_64-pc-windows-gnu" |
+            "x86_64-pc-windows-msvc" => {
+                SystemID::Windows_x86_64
+            },
+            "x86_64-unknown-linux-gnu" => SystemID::Linux_x86_64,
+
+            //
+            // Rust Tier 2 Targets (subset)
+            //
+
+            // 64-bit ARM
+            "aarch64-apple-darwin" => SystemID::MacOSX_ARM64,
+            "aarch64-apple-ios" |
+            "aarch64-apple-ios-sim" => SystemID::iOS_ARM64,
+            "aarch64-linux-android" => SystemID::Android,
+            // 32-bit ARM (e.g. Raspberry Pi)
+            "armv7-unknown-linux-gnueabihf" => SystemID::Linux_ARM,
+
+            _ => {
+                return Err(Error::other(format!(
+                    "no known Wolfram System ID value associated with Rust target triple: {}",
+                    rust_target
+                )))
+            },
+        };
+
+        Ok(id)
     }
 }
 
@@ -1010,7 +1145,7 @@ impl WolframApp {
                 PathBuf::from("SystemFiles")
                     .join("Kernel")
                     .join("Binaries")
-                    .join(target_system_id())
+                    .join(SystemID::current_rust_target().as_str())
                     .join("wolframscript")
             },
             OperatingSystem::Other => {
@@ -1186,7 +1321,7 @@ impl WolframApp {
             .join("Links")
             .join("WSTP")
             .join("DeveloperKit")
-            .join(target_system_id())
+            .join(SystemID::current_rust_target().as_str())
             .join("CompilerAdditions");
 
         if !path.is_dir() {
@@ -1435,5 +1570,11 @@ impl Display for WolframVersion {
         } = *self;
 
         write!(f, "{}.{}.{}", major, minor, patch)
+    }
+}
+
+impl Display for SystemID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }

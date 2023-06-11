@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.4.6] — 2023-06-11
+
+### Added
+
+* Added new `WolframVersion::new()` method. ([#60])
+
 
 
 ## [0.4.5] — 2023-05-19
@@ -412,10 +418,14 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.5 -->
 [#58]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/58
 
+<!-- v0.4.6 -->
+[#60]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/60
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.6...HEAD
 
+[0.4.6]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.2...v0.4.3

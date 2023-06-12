@@ -8,6 +8,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.4.7] — 2023-06-12
+
+### Added
+
+* Added new
+  [`SystemID`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/enum.SystemID.html)
+  enum. ([#63])
+
+  This enum has a variant for each value of Wolfram
+  [`$SystemID`](https://reference.wolfram.com/language/ref/$System)
+  that is in common use.
+
+  - `SystemID::current_rust_target()` can be used to get the Wolfram system ID
+    of the current Rust target.
+  - `SystemID::try_from_rust_target()` takes a
+    [Rust target triple](https://doc.rust-lang.org/nightly/rustc/platform-support.html)
+    and returns the corresponding Wolfram system ID.
+
+* Added new
+  [`WstpSdk`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WstpSdk.html)
+  struct. ([#63])
+
+* Added new
+  [`WolframApp::wstp_sdks()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WstpSdk.html#method.wstp_sdks)
+  method to enumerate each per-SystemID copy of the WSTP SDK that is bundled within a particular Wolfram app installation. ([#63])
+
+* Added new
+  [`WolframApp::target_wstp_sdk()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WstpSdk.html#method.target_wstp_sdk)
+  method to get the WSTP SDK appropriate for the current Rust target. ([#63])
+
+### Deprecated
+
+The following items have been deprecated and will be removed in a future version
+of `wolfram-app-discovery`:
+
+* `wolfram_app_discovery::target_system_id()`
+* `wolfram_app_discovery::system_id_from_target()`
+* `WolframApp::wstp_c_header_path()`
+* `WolframApp::wstp_static_library_path()`
+* `WolframApp::wstp_compiler_additions_directory()`
+
+
+
 ## [0.4.6] — 2023-06-11
 
 ### Added
@@ -421,10 +464,14 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.6 -->
 [#60]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/60
 
+<!-- v0.4.7 -->
+[#63]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/63
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.7...HEAD
 
+[0.4.7]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.3...v0.4.4

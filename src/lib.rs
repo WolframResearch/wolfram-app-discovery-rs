@@ -1642,10 +1642,10 @@ impl WolframApp {
                 .join("Wolfram Player.app"),
             // Wolfram Engine does not contain an embedded Wolfram Player
             // on Windows.
-            OperatingSystem::Windows => {
+            OperatingSystem::Windows | OperatingSystem::Linux => {
                 return Ok(self);
             },
-            OperatingSystem::Linux | OperatingSystem::Other => {
+            OperatingSystem::Other => {
                 // TODO: Does Wolfram Engine on Linux/Windows contain an embedded Wolfram Player,
                 //       or is that only done on macOS?
                 print_platform_unimplemented_warning(

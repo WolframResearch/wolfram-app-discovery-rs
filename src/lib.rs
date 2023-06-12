@@ -559,6 +559,24 @@ impl SystemID {
     ///
     /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
     ///
+    /// # Host vs. Target in `build.rs`
+    ///
+    /// **Within a build.rs script**, if the current build is a
+    /// cross-compilation, this function will return the system ID of the
+    /// _host_ that the build script was compiled for, and not the _target_
+    /// system ID that the current Rust project is being compiled for.
+    ///
+    /// To get the target system ID of the main build, use:
+    ///
+    /// ```
+    /// use wolfram_app_discovery::SystemID;
+    ///
+    /// // Read the target from the _runtime_ environment of the build.rs script.
+    /// let target = std::env::var("TARGET").unwrap();
+    ///
+    /// let system_id = SystemID::try_from_rust_target(&target).unwrap();
+    /// ```
+    ///
     /// # Panics
     ///
     /// This function will panic if the underlying call to
@@ -572,17 +590,8 @@ impl SystemID {
         }
     }
 
-    /// Returns the [`$SystemID`][$SystemID] value associated with the Rust
-    /// target this code is being compiled for.
-    ///
-    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error value if the current Rust target
-    /// does not map to a known Wolfram System ID value. This can happen if the
-    /// current Rust project is targeting a system that the Wolfram System does
-    /// not natively support.
+    /// Variant of [`SystemID::current_rust_target()`] that returns an error
+    /// instead of panicking.
     pub fn try_current_rust_target() -> Result<SystemID, Error> {
         SystemID::try_from_rust_target(env!("TARGET"))
     }

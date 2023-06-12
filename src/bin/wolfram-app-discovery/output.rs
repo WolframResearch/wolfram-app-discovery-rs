@@ -194,13 +194,15 @@ impl<'app> Display for PropertyValue<'app> {
                 }
             },
             Property::WstpCompilerAdditionsDirectory => {
-                match app.wstp_compiler_additions_directory() {
-                    Ok(path) => write!(fmt, "{}", path.display()),
+                match app.target_wstp_sdk() {
+                    Ok(wstp_sdk) => write!(
+                        fmt,
+                        "{}",
+                        wstp_sdk.wstp_compiler_additions_directory().display()
+                    ),
                     Err(error) => {
                         // Print an error to stderr.
-                        eprintln!(
-                            "Error getting WSTP CompilerAdditions location: {error}"
-                        );
+                        eprintln!("Error getting target WSTP SDK location: {error}");
 
                         write!(fmt, "Error")
                     },

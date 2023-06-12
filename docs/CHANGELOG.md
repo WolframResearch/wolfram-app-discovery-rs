@@ -31,11 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   struct. ([#63])
 
 * Added new
-  [`WolframApp::wstp_sdks()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WstpSdk.html#method.wstp_sdks)
+  [`WolframApp::wstp_sdks()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WolframApp.html#method.wstp_sdks)
   method to enumerate each per-SystemID copy of the WSTP SDK that is bundled within a particular Wolfram app installation. ([#63])
 
 * Added new
-  [`WolframApp::target_wstp_sdk()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WstpSdk.html#method.target_wstp_sdk)
+  [`WolframApp::target_wstp_sdk()`](https://docs.rs/wolfram-app-discovery/0.4.7/wolfram_app_discovery/struct.WolframApp.html#method.target_wstp_sdk)
   method to get the WSTP SDK appropriate for the current Rust target. ([#63])
 
 ### Deprecated

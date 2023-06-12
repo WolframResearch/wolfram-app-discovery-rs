@@ -55,7 +55,6 @@ fn macos_wolfram_engine_properties() {
     engine.wolfram_version().unwrap();
     engine.wolframscript_executable_path().unwrap();
     engine.kernel_executable_path().unwrap();
-    engine.wstp_c_header_path().unwrap();
-    engine.wstp_static_library_path().unwrap();
+    engine.target_wstp_sdk().unwrap();
     engine.library_link_c_includes_directory().unwrap();
 }

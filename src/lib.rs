@@ -132,6 +132,42 @@ pub enum WolframAppType {
     // NOTE: When adding a new variant here, be sure to update WolframAppType::variants().
 }
 
+/// Possible values of [`$SystemID`][$SystemID].
+///
+/// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+#[allow(non_camel_case_types, missing_docs)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum SystemID {
+    /// `"MacOSX-x86-64"`
+    MacOSX_x86_64,
+    /// `"MacOSX-ARM64"`
+    MacOSX_ARM64,
+    /// `"Windows-x86-64"`
+    Windows_x86_64,
+    /// `"Linux-x86-64"`
+    Linux_x86_64,
+    /// `"Linux-ARM64"`
+    Linux_ARM64,
+    /// `"Linux-ARM"`
+    ///
+    /// E.g. Raspberry Pi
+    Linux_ARM,
+    /// `"iOS-ARM64"`
+    iOS_ARM64,
+    /// `"Android"`
+    Android,
+
+    /// `"Windows"`
+    ///
+    /// Legacy Windows 32-bit x86
+    Windows,
+    /// `"Linux"`
+    ///
+    /// Legacy Linux 32-bit x86
+    Linux,
+}
+
 /// Wolfram application version number.
 ///
 /// The major, minor, and revision components of most Wolfram applications will
@@ -153,6 +189,18 @@ pub struct WolframVersion {
     major: u32,
     minor: u32,
     patch: u32,
+}
+
+/// A local copy of the WSTP developer kit for a particular [`SystemID`].
+#[derive(Debug, Clone)]
+pub struct WstpSdk {
+    system_id: SystemID,
+    /// E.g. `$InstallationDirectory/SystemFiles/Links/WSTP/DeveloperKit/MacOSX-x86-64/`
+    sdk_dir: PathBuf,
+    compiler_additions: PathBuf,
+
+    wstp_h: PathBuf,
+    wstp_static_library: PathBuf,
 }
 
 #[doc(hidden)]
@@ -185,6 +233,11 @@ pub(crate) enum ErrorKind {
         /// does not.
         path: PathBuf,
     },
+    UnexpectedLayout {
+        resource_name: &'static str,
+        dir: PathBuf,
+        path: PathBuf,
+    },
     /// The non-app directory specified by the configuration environment
     /// variable `env_var` does not contain a file at the expected location.
     UnexpectedEnvironmentValueLayout {
@@ -204,6 +257,7 @@ pub(crate) enum ErrorKind {
         operation: String,
         target_os: OperatingSystem,
     },
+    IO(String),
     Other(String),
 }
 
@@ -243,6 +297,20 @@ impl Error {
         let err = Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
             app_installation_dir: app.installation_directory(),
+            path,
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn unexpected_layout(
+        resource_name: &'static str,
+        dir: PathBuf,
+        path: PathBuf,
+    ) -> Self {
+        let err = Error(ErrorKind::UnexpectedLayout {
+            resource_name,
+            dir,
             path,
         });
         info!("discovery error: {err}");
@@ -356,46 +424,17 @@ pub fn discover_with_filter(filter: &Filter) -> Vec<WolframApp> {
 /// [ref/$SystemID]: https://reference.wolfram.com/language/ref/$SystemID.html
 // TODO: What exactly does this function mean if the user tries to cross-compile a
 //       library?
-// TODO: Use env!("TARGET") here and just call system_id_from_target()?
-// TODO: Add an `enum SystemID` and use it here. It should have an
-//         `as_str(&self) -> &'static str`
-//       method.
+#[deprecated(note = "use `SystemID::current_rust_target()` instead")]
 pub fn target_system_id() -> &'static str {
-    match system_id_from_target(env!("TARGET")) {
-        Ok(system_id) => system_id,
-        Err(err) => panic!(
-            "target_system_id() has not been implemented for the current target: {err}"
-        ),
-    }
+    SystemID::current_rust_target().as_str()
 }
 
 /// Returns the System ID value that corresponds to the specified Rust
 /// [target triple](https://doc.rust-lang.org/nightly/rustc/platform-support.html), if
 /// any.
+#[deprecated(note = "use `SystemID::try_from_rust_target()` instead")]
 pub fn system_id_from_target(rust_target: &str) -> Result<&'static str, Error> {
-    let id = match rust_target {
-        // 64-bit x86
-        "x86_64-apple-darwin" => "MacOSX-x86-64",
-        "x86_64-unknown-linux-gnu" => "Linux-x86-64",
-        "x86_64-pc-windows-msvc" | "x86_64-pc-windows-gnu" => "Windows-x86-64",
-
-        // 64-bit ARM
-        "aarch64-apple-darwin" => "MacOSX-ARM64",
-        "aarch64-apple-ios" | "aarch64-apple-ios-sim" => "iOS-ARM64", // iOS
-        "aarch64-unknown-linux-gnu" => "Linux-ARM64",
-        "aarch64-linux-android" => "Android",
-
-        // 32-bit ARM (e.g. Raspberry Pi)
-        "armv7-unknown-linux-gnueabihf" => "Linux-ARM",
-        _ => {
-            return Err(Error::other(format!(
-                "no System ID value associated with Rust target triple: {}",
-                rust_target
-            )))
-        },
-    };
-
-    Ok(id)
+    SystemID::try_from_rust_target(rust_target).map(|id| id.as_str())
 }
 
 //======================================
@@ -474,6 +513,134 @@ impl WolframAppType {
     }
 }
 
+impl FromStr for SystemID {
+    type Err = ();
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let value = match string {
+            "MacOSX-x86-64" => SystemID::MacOSX_x86_64,
+            "MacOSX-ARM64" => SystemID::MacOSX_ARM64,
+            "Windows-x86-64" => SystemID::Windows_x86_64,
+            "Linux-x86-64" => SystemID::Linux_x86_64,
+            "Linux-ARM64" => SystemID::Linux_ARM64,
+            "Linux-ARM" => SystemID::Linux_ARM,
+            "iOS-ARM64" => SystemID::iOS_ARM64,
+            "Android" => SystemID::Android,
+            "Windows" => SystemID::Windows,
+            "Linux" => SystemID::Linux,
+            _ => return Err(()),
+        };
+
+        Ok(value)
+    }
+}
+
+impl SystemID {
+    /// [`$SystemID`][$SystemID] string value of this [`SystemID`].
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            SystemID::MacOSX_x86_64 => "MacOSX-x86-64",
+            SystemID::MacOSX_ARM64 => "MacOSX-ARM64",
+            SystemID::Windows_x86_64 => "Windows-x86-64",
+            SystemID::Linux_x86_64 => "Linux-x86-64",
+            SystemID::Linux_ARM64 => "Linux-ARM64",
+            SystemID::Linux_ARM => "Linux-ARM",
+            SystemID::iOS_ARM64 => "iOS-ARM64",
+            SystemID::Android => "Android",
+            SystemID::Windows => "Windows",
+            SystemID::Linux => "Linux",
+        }
+    }
+
+    /// Returns the [`$SystemID`][$SystemID] value associated with the Rust
+    /// target this code is being compiled for.
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    ///
+    /// # Panics
+    ///
+    /// This function will panic if the underlying call to
+    /// [`SystemID::try_current_rust_target()`] fails.
+    pub fn current_rust_target() -> SystemID {
+        match SystemID::try_current_rust_target() {
+            Ok(system_id) => system_id,
+            Err(err) => panic!(
+                "target_system_id() has not been implemented for the current target: {err}"
+            ),
+        }
+    }
+
+    /// Returns the [`$SystemID`][$SystemID] value associated with the Rust
+    /// target this code is being compiled for.
+    ///
+    /// [$SystemID]: https://reference.wolfram.com/language/ref/$SystemID
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error value if the current Rust target
+    /// does not map to a known Wolfram System ID value. This can happen if the
+    /// current Rust project is targeting a system that the Wolfram System does
+    /// not natively support.
+    pub fn try_current_rust_target() -> Result<SystemID, Error> {
+        SystemID::try_from_rust_target(env!("TARGET"))
+    }
+
+    /// Get the [`SystemID`] value corresponding to the specified
+    /// [Rust target triple][targets].
+    ///
+    /// ```
+    /// use wolfram_app_discovery::SystemID;
+    ///
+    /// assert_eq!(
+    ///     SystemID::try_from_rust_target("x86_64-apple-darwin").unwrap(),
+    ///     SystemID::MacOSX_x86_64
+    /// );
+    /// ```
+    ///
+    /// [targets]: https://doc.rust-lang.org/nightly/rustc/platform-support.html
+    pub fn try_from_rust_target(rust_target: &str) -> Result<SystemID, Error> {
+        #[rustfmt::skip]
+        let id = match rust_target {
+            //
+            // Rust Tier 1 Targets (all at time of writing)
+            //
+            "aarch64-unknown-linux-gnu" => SystemID::Linux_ARM64,
+            "i686-pc-windows-gnu" |
+            "i686-pc-windows-msvc" => SystemID::Windows,
+            "i686-unknown-linux-gnu" => SystemID::Linux,
+            "x86_64-apple-darwin" => SystemID::MacOSX_x86_64,
+            "x86_64-pc-windows-gnu" |
+            "x86_64-pc-windows-msvc" => {
+                SystemID::Windows_x86_64
+            },
+            "x86_64-unknown-linux-gnu" => SystemID::Linux_x86_64,
+
+            //
+            // Rust Tier 2 Targets (subset)
+            //
+
+            // 64-bit ARM
+            "aarch64-apple-darwin" => SystemID::MacOSX_ARM64,
+            "aarch64-apple-ios" |
+            "aarch64-apple-ios-sim" => SystemID::iOS_ARM64,
+            "aarch64-linux-android" => SystemID::Android,
+            // 32-bit ARM (e.g. Raspberry Pi)
+            "armv7-unknown-linux-gnueabihf" => SystemID::Linux_ARM,
+
+            _ => {
+                return Err(Error::other(format!(
+                    "no known Wolfram System ID value associated with Rust target triple: {}",
+                    rust_target
+                )))
+            },
+        };
+
+        Ok(id)
+    }
+}
+
 impl WolframVersion {
     /// Construct a new [`WolframVersion`].
     ///
@@ -487,7 +654,7 @@ impl WolframVersion {
     ///
     /// assert!(v13_2 < v13_3);
     /// ```
-    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+    pub const fn new(major: u32, minor: u32, patch: u32) -> Self {
         WolframVersion {
             major,
             minor,
@@ -498,48 +665,48 @@ impl WolframVersion {
     /// First component of [`$VersionNumber`][ref/$VersionNumber].
     ///
     /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
-    pub fn major(&self) -> u32 {
+    pub const fn major(&self) -> u32 {
         self.major
     }
 
     /// Second component of [`$VersionNumber`][ref/$VersionNumber].
     ///
     /// [ref/$VersionNumber]: https://reference.wolfram.com/language/ref/$VersionNumber.html
-    pub fn minor(&self) -> u32 {
+    pub const fn minor(&self) -> u32 {
         self.minor
     }
 
     /// [`$ReleaseNumber`][ref/$ReleaseNumber]
     ///
     /// [ref/$ReleaseNumber]: https://reference.wolfram.com/language/ref/$ReleaseNumber.html
-    pub fn patch(&self) -> u32 {
+    pub const fn patch(&self) -> u32 {
         self.patch
     }
 }
 
 impl AppVersion {
     #[allow(missing_docs)]
-    pub fn major(&self) -> u32 {
+    pub const fn major(&self) -> u32 {
         self.major
     }
 
     #[allow(missing_docs)]
-    pub fn minor(&self) -> u32 {
+    pub const fn minor(&self) -> u32 {
         self.minor
     }
 
     #[allow(missing_docs)]
-    pub fn revision(&self) -> u32 {
+    pub const fn revision(&self) -> u32 {
         self.revision
     }
 
     #[allow(missing_docs)]
-    pub fn minor_revision(&self) -> Option<u32> {
+    pub const fn minor_revision(&self) -> Option<u32> {
         self.minor_revision
     }
 
     #[allow(missing_docs)]
-    pub fn build_code(&self) -> Option<u32> {
+    pub const fn build_code(&self) -> Option<u32> {
         self.build_code
     }
 
@@ -614,6 +781,131 @@ impl AppVersion {
         };
 
         Ok(app_version)
+    }
+}
+
+#[allow(missing_docs)]
+impl WstpSdk {
+    /// Construct a new [`WstpSdk`] from a directory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use wolfram_app_discovery::WstpSdk;
+    ///
+    /// let sdk = WstpSdk::try_from_directory(PathBuf::from(
+    ///     "/Applications/Wolfram/Mathematica-Latest.app/Contents/SystemFiles/Links/WSTP/DeveloperKit/MacOSX-x86-64"
+    /// )).unwrap();
+    ///
+    /// assert_eq!(
+    ///     sdk.wstp_c_header_path().file_name().unwrap(),
+    ///     "wstp.h"
+    /// );
+    /// ```
+    pub fn try_from_directory(dir: PathBuf) -> Result<Self, Error> {
+        let Some(system_id) = dir.file_name() else {
+            return Err(Error::other(format!(
+                "WSTP SDK dir path file name is empty: {}",
+                dir.display()
+            )));
+        };
+
+        let system_id = system_id.to_str().ok_or_else(|| {
+            Error::other(format!(
+                "WSTP SDK dir path is not valid UTF-8: {}",
+                dir.display()
+            ))
+        })?;
+
+        let system_id = SystemID::from_str(system_id).map_err(|()| {
+            Error::other(format!(
+                "WSTP SDK dir path is does not end in a recognized SystemID: {}",
+                dir.display()
+            ))
+        })?;
+
+        Self::try_from_directory_with_system_id(dir, system_id)
+    }
+
+    pub fn try_from_directory_with_system_id(
+        dir: PathBuf,
+        system_id: SystemID,
+    ) -> Result<Self, Error> {
+        if !dir.is_dir() {
+            return Err(Error::other(format!(
+                "WSTP SDK dir path is not a directory: {}",
+                dir.display()
+            )));
+        };
+
+
+        let compiler_additions = dir.join("CompilerAdditions");
+
+        let wstp_h = compiler_additions.join("wstp.h");
+
+        if !wstp_h.is_file() {
+            return Err(Error::unexpected_layout(
+                "wstp.h C header file",
+                dir,
+                wstp_h,
+            ));
+        }
+
+        let wstp_static_library = compiler_additions.join(
+            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?,
+        );
+
+        if !wstp_static_library.is_file() {
+            return Err(Error::unexpected_layout(
+                "WSTP static library file ",
+                dir,
+                wstp_static_library,
+            ));
+        }
+
+        Ok(WstpSdk {
+            system_id,
+            sdk_dir: dir,
+            compiler_additions,
+
+            wstp_h,
+            wstp_static_library,
+        })
+    }
+
+    pub fn system_id(&self) -> SystemID {
+        self.system_id
+    }
+
+    pub fn sdk_dir(&self) -> PathBuf {
+        self.sdk_dir.clone()
+    }
+
+    /// Returns the location of the CompilerAdditions subdirectory of the WSTP
+    /// SDK.
+    pub fn wstp_compiler_additions_directory(&self) -> PathBuf {
+        self.compiler_additions.clone()
+    }
+
+    /// Returns the location of the
+    /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
+    /// header file.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
+    pub fn wstp_c_header_path(&self) -> PathBuf {
+        self.wstp_h.clone()
+    }
+
+    /// Returns the location of the
+    /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
+    /// static library.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
+    pub fn wstp_static_library_path(&self) -> PathBuf {
+        self.wstp_static_library.clone()
     }
 }
 
@@ -1010,7 +1302,7 @@ impl WolframApp {
                 PathBuf::from("SystemFiles")
                     .join("Kernel")
                     .join("Binaries")
-                    .join(target_system_id())
+                    .join(SystemID::current_rust_target().as_str())
                     .join("wolframscript")
             },
             OperatingSystem::Other => {
@@ -1033,24 +1325,62 @@ impl WolframApp {
         Ok(path)
     }
 
+    /// Get a list of all [`WstpSdk`]s provided by this app.
+    pub fn wstp_sdks(&self) -> Result<Vec<Result<WstpSdk, Error>>, Error> {
+        let root = self
+            .installation_directory()
+            .join("SystemFiles")
+            .join("Links")
+            .join("WSTP")
+            .join("DeveloperKit");
+
+        let mut sdks = Vec::new();
+
+        if !root.is_dir() {
+            return Err(Error::unexpected_app_layout(
+                "WSTP DeveloperKit directory",
+                self,
+                root,
+            ));
+        }
+
+        for entry in std::fs::read_dir(root)? {
+            let value: Result<WstpSdk, Error> = match entry {
+                Ok(entry) => WstpSdk::try_from_directory(entry.path()),
+                Err(io_err) => Err(Error::from(io_err)),
+            };
+
+            sdks.push(value);
+        }
+
+        Ok(sdks)
+    }
+
+    /// Get the [`WstpSdk`] for the current target platform.
+    ///
+    /// This function uses [`SystemID::current_rust_target()`] to determine
+    /// the appropriate entry from [`WolframApp::wstp_sdks()`] to return.
+    pub fn target_wstp_sdk(&self) -> Result<WstpSdk, Error> {
+        self.wstp_sdks()?
+            .into_iter()
+            .flat_map(|sdk| sdk.ok())
+            .find(|sdk| sdk.system_id() == SystemID::current_rust_target())
+            .ok_or_else(|| {
+                Error::other(format!("unable to locate WSTP SDK for current target"))
+            })
+    }
+
     /// Returns the location of the
     /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
     /// header file.
     ///
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk()?.wstp_c_header_path()` instead"
+    )]
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
-        let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
-
-        if !path.is_file() {
-            return Err(Error::unexpected_app_layout(
-                "wstp.h C header file",
-                self,
-                path,
-            ));
-        }
-
-        Ok(path)
+        Ok(self.target_wstp_sdk()?.wstp_c_header_path().to_path_buf())
     }
 
     /// Returns the location of the
@@ -1059,23 +1389,14 @@ impl WolframApp {
     ///
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk()?.wstp_static_library_path()` instead"
+    )]
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
-        let static_archive_name =
-            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?;
-
-        let lib = self
-            .wstp_compiler_additions_directory()?
-            .join(static_archive_name);
-
-        if !lib.is_file() {
-            return Err(Error::unexpected_app_layout(
-                "WSTP static library file ",
-                self,
-                lib,
-            ));
-        }
-
-        Ok(lib)
+        Ok(self
+            .target_wstp_sdk()?
+            .wstp_static_library_path()
+            .to_path_buf())
     }
 
     /// Returns the location of the directory containing the
@@ -1175,19 +1496,15 @@ impl WolframApp {
 
     /// Returns the location of the CompilerAdditions subdirectory of the WSTP
     /// SDK.
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk().sdk_dir().join(\"CompilerAdditions\")` instead"
+    )]
     pub fn wstp_compiler_additions_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
             return player.wstp_compiler_additions_directory();
         }
 
-        let path = self
-            .installation_directory()
-            .join("SystemFiles")
-            .join("Links")
-            .join("WSTP")
-            .join("DeveloperKit")
-            .join(target_system_id())
-            .join("CompilerAdditions");
+        let path = self.target_wstp_sdk()?.wstp_compiler_additions_directory();
 
         if !path.is_dir() {
             return Err(Error::unexpected_app_layout(
@@ -1351,6 +1668,16 @@ impl WolframApp {
 }
 
 //======================================
+// Conversion Impls
+//======================================
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error(ErrorKind::IO(err.to_string()))
+    }
+}
+
+//======================================
 // Formatting Impls
 //======================================
 
@@ -1384,6 +1711,18 @@ impl Display for ErrorKind {
                     path.display()
                 )
             },
+            ErrorKind::UnexpectedLayout {
+                resource_name,
+                dir,
+                path,
+            } => {
+                write!(
+                    f,
+                    "in component at '{}', {resource_name} does not exist at the expected location: {}",
+                    dir.display(),
+                    path.display()
+                )
+            },
             ErrorKind::UnexpectedEnvironmentValueLayout {
                 resource_name,
                 env_var,
@@ -1407,6 +1746,7 @@ impl Display for ErrorKind {
                 f,
                 "operation '{operation}' is not yet implemented for this platform: {target_os:?}",
             ),
+            ErrorKind::IO(io_err) => write!(f, "IO error during discovery: {}", io_err),
             ErrorKind::Other(message) => write!(f, "{message}"),
         }
     }
@@ -1435,5 +1775,11 @@ impl Display for WolframVersion {
         } = *self;
 
         write!(f, "{}.{}.{}", major, minor, patch)
+    }
+}
+
+impl Display for SystemID {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }

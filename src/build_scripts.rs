@@ -164,7 +164,7 @@ pub fn wstp_compiler_additions_directory(
     }
 
     if let Some(app) = app {
-        let path = app.wstp_compiler_additions_directory()?;
+        let path = app.target_wstp_sdk()?.wstp_compiler_additions_directory();
 
         #[rustfmt::skip]
         info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
@@ -201,7 +201,7 @@ pub fn wstp_c_header_path(app: Option<&WolframApp>) -> Result<Discovery, Error> 
         // app.wstp_c_header_path() directly.
         Discovery::App(_) => {
             let app = app.unwrap();
-            let path = app.wstp_c_header_path()?;
+            let path = app.target_wstp_sdk()?.wstp_c_header_path();
             #[rustfmt::skip]
             info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
             return Ok(Discovery::App(path));
@@ -250,7 +250,7 @@ pub fn wstp_static_library_path(app: Option<&WolframApp>) -> Result<Discovery, E
         // app.wstp_c_header_path() directly.
         Discovery::App(_) => {
             let app = app.unwrap();
-            let path = app.wstp_static_library_path()?;
+            let path = app.target_wstp_sdk()?.wstp_static_library_path();
             #[rustfmt::skip]
             info!("discovered in app ({:?}): {}", app.installation_directory().display(), path.display());
             return Ok(Discovery::App(path));
@@ -360,8 +360,9 @@ fn test_wstp_c_header_path() {
     // can discovery an installed WolframApp that has one.
     let compiler_additions_dir = WolframApp::try_default()
         .unwrap()
-        .wstp_compiler_additions_directory()
-        .unwrap();
+        .target_wstp_sdk()
+        .unwrap()
+        .wstp_compiler_additions_directory();
     std::env::set_var("WSTP_COMPILER_ADDITIONS_DIRECTORY", &compiler_additions_dir);
 
     assert_eq!(

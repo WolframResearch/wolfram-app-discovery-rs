@@ -191,6 +191,18 @@ pub struct WolframVersion {
     patch: u32,
 }
 
+/// A local copy of the WSTP developer kit for a particular [`SystemID`].
+#[derive(Debug, Clone)]
+pub struct WstpSdk {
+    system_id: SystemID,
+    /// E.g. `$InstallationDirectory/SystemFiles/Links/WSTP/DeveloperKit/MacOSX-x86-64/`
+    sdk_dir: PathBuf,
+    compiler_additions: PathBuf,
+
+    wstp_h: PathBuf,
+    wstp_static_library: PathBuf,
+}
+
 #[doc(hidden)]
 pub struct Filter {
     pub app_types: Option<Vec<WolframAppType>>,
@@ -221,6 +233,11 @@ pub(crate) enum ErrorKind {
         /// does not.
         path: PathBuf,
     },
+    UnexpectedLayout {
+        resource_name: &'static str,
+        dir: PathBuf,
+        path: PathBuf,
+    },
     /// The non-app directory specified by the configuration environment
     /// variable `env_var` does not contain a file at the expected location.
     UnexpectedEnvironmentValueLayout {
@@ -240,6 +257,7 @@ pub(crate) enum ErrorKind {
         operation: String,
         target_os: OperatingSystem,
     },
+    IO(String),
     Other(String),
 }
 
@@ -279,6 +297,20 @@ impl Error {
         let err = Error(ErrorKind::UnexpectedAppLayout {
             resource_name,
             app_installation_dir: app.installation_directory(),
+            path,
+        });
+        info!("discovery error: {err}");
+        err
+    }
+
+    pub(crate) fn unexpected_layout(
+        resource_name: &'static str,
+        dir: PathBuf,
+        path: PathBuf,
+    ) -> Self {
+        let err = Error(ErrorKind::UnexpectedLayout {
+            resource_name,
+            dir,
             path,
         });
         info!("discovery error: {err}");
@@ -752,6 +784,131 @@ impl AppVersion {
     }
 }
 
+#[allow(missing_docs)]
+impl WstpSdk {
+    /// Construct a new [`WstpSdk`] from a directory.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::path::PathBuf;
+    /// use wolfram_app_discovery::WstpSdk;
+    ///
+    /// let sdk = WstpSdk::try_from_directory(PathBuf::from(
+    ///     "/Applications/Wolfram/Mathematica-Latest.app/Contents/SystemFiles/Links/WSTP/DeveloperKit/MacOSX-x86-64"
+    /// )).unwrap();
+    ///
+    /// assert_eq!(
+    ///     sdk.wstp_c_header_path().file_name().unwrap(),
+    ///     "wstp.h"
+    /// );
+    /// ```
+    pub fn try_from_directory(dir: PathBuf) -> Result<Self, Error> {
+        let Some(system_id) = dir.file_name() else {
+            return Err(Error::other(format!(
+                "WSTP SDK dir path file name is empty: {}",
+                dir.display()
+            )));
+        };
+
+        let system_id = system_id.to_str().ok_or_else(|| {
+            Error::other(format!(
+                "WSTP SDK dir path is not valid UTF-8: {}",
+                dir.display()
+            ))
+        })?;
+
+        let system_id = SystemID::from_str(system_id).map_err(|()| {
+            Error::other(format!(
+                "WSTP SDK dir path is does not end in a recognized SystemID: {}",
+                dir.display()
+            ))
+        })?;
+
+        Self::try_from_directory_with_system_id(dir, system_id)
+    }
+
+    pub fn try_from_directory_with_system_id(
+        dir: PathBuf,
+        system_id: SystemID,
+    ) -> Result<Self, Error> {
+        if !dir.is_dir() {
+            return Err(Error::other(format!(
+                "WSTP SDK dir path is not a directory: {}",
+                dir.display()
+            )));
+        };
+
+
+        let compiler_additions = dir.join("CompilerAdditions");
+
+        let wstp_h = compiler_additions.join("wstp.h");
+
+        if !wstp_h.is_file() {
+            return Err(Error::unexpected_layout(
+                "wstp.h C header file",
+                dir,
+                wstp_h,
+            ));
+        }
+
+        let wstp_static_library = compiler_additions.join(
+            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?,
+        );
+
+        if !wstp_static_library.is_file() {
+            return Err(Error::unexpected_layout(
+                "WSTP static library file ",
+                dir,
+                wstp_static_library,
+            ));
+        }
+
+        Ok(WstpSdk {
+            system_id,
+            sdk_dir: dir,
+            compiler_additions,
+
+            wstp_h,
+            wstp_static_library,
+        })
+    }
+
+    pub fn system_id(&self) -> SystemID {
+        self.system_id
+    }
+
+    pub fn sdk_dir(&self) -> PathBuf {
+        self.sdk_dir.clone()
+    }
+
+    /// Returns the location of the CompilerAdditions subdirectory of the WSTP
+    /// SDK.
+    pub fn wstp_compiler_additions_directory(&self) -> PathBuf {
+        self.compiler_additions.clone()
+    }
+
+    /// Returns the location of the
+    /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
+    /// header file.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
+    pub fn wstp_c_header_path(&self) -> PathBuf {
+        self.wstp_h.clone()
+    }
+
+    /// Returns the location of the
+    /// [WSTP](https://reference.wolfram.com/language/guide/WSTPAPI.html)
+    /// static library.
+    ///
+    /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
+    /// to WSTP.*
+    pub fn wstp_static_library_path(&self) -> PathBuf {
+        self.wstp_static_library.clone()
+    }
+}
+
 impl Filter {
     fn allow_all() -> Self {
         Filter { app_types: None }
@@ -1168,24 +1325,62 @@ impl WolframApp {
         Ok(path)
     }
 
+    /// Get a list of all [`WstpSdk`]s provided by this app.
+    pub fn wstp_sdks(&self) -> Result<Vec<Result<WstpSdk, Error>>, Error> {
+        let root = self
+            .installation_directory()
+            .join("SystemFiles")
+            .join("Links")
+            .join("WSTP")
+            .join("DeveloperKit");
+
+        let mut sdks = Vec::new();
+
+        if !root.is_dir() {
+            return Err(Error::unexpected_app_layout(
+                "WSTP DeveloperKit directory",
+                self,
+                root,
+            ));
+        }
+
+        for entry in std::fs::read_dir(root)? {
+            let value: Result<WstpSdk, Error> = match entry {
+                Ok(entry) => WstpSdk::try_from_directory(entry.path()),
+                Err(io_err) => Err(Error::from(io_err)),
+            };
+
+            sdks.push(value);
+        }
+
+        Ok(sdks)
+    }
+
+    /// Get the [`WstpSdk`] for the current target platform.
+    ///
+    /// This function uses [`SystemID::current_rust_target()`] to determine
+    /// the appropriate entry from [`WolframApp::wstp_sdks()`] to return.
+    pub fn target_wstp_sdk(&self) -> Result<WstpSdk, Error> {
+        self.wstp_sdks()?
+            .into_iter()
+            .flat_map(|sdk| sdk.ok())
+            .find(|sdk| sdk.system_id() == SystemID::current_rust_target())
+            .ok_or_else(|| {
+                Error::other(format!("unable to locate WSTP SDK for current target"))
+            })
+    }
+
     /// Returns the location of the
     /// [`wstp.h`](https://reference.wolfram.com/language/ref/file/wstp.h.html)
     /// header file.
     ///
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk()?.wstp_c_header_path()` instead"
+    )]
     pub fn wstp_c_header_path(&self) -> Result<PathBuf, Error> {
-        let path = self.wstp_compiler_additions_directory()?.join("wstp.h");
-
-        if !path.is_file() {
-            return Err(Error::unexpected_app_layout(
-                "wstp.h C header file",
-                self,
-                path,
-            ));
-        }
-
-        Ok(path)
+        Ok(self.target_wstp_sdk()?.wstp_c_header_path().to_path_buf())
     }
 
     /// Returns the location of the
@@ -1194,23 +1389,14 @@ impl WolframApp {
     ///
     /// *Note: The [wstp](https://crates.io/crates/wstp) crate provides safe Rust bindings
     /// to WSTP.*
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk()?.wstp_static_library_path()` instead"
+    )]
     pub fn wstp_static_library_path(&self) -> Result<PathBuf, Error> {
-        let static_archive_name =
-            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?;
-
-        let lib = self
-            .wstp_compiler_additions_directory()?
-            .join(static_archive_name);
-
-        if !lib.is_file() {
-            return Err(Error::unexpected_app_layout(
-                "WSTP static library file ",
-                self,
-                lib,
-            ));
-        }
-
-        Ok(lib)
+        Ok(self
+            .target_wstp_sdk()?
+            .wstp_static_library_path()
+            .to_path_buf())
     }
 
     /// Returns the location of the directory containing the
@@ -1310,19 +1496,15 @@ impl WolframApp {
 
     /// Returns the location of the CompilerAdditions subdirectory of the WSTP
     /// SDK.
+    #[deprecated(
+        note = "use `WolframApp::target_wstp_sdk().sdk_dir().join(\"CompilerAdditions\")` instead"
+    )]
     pub fn wstp_compiler_additions_directory(&self) -> Result<PathBuf, Error> {
         if let Some(ref player) = self.embedded_player {
             return player.wstp_compiler_additions_directory();
         }
 
-        let path = self
-            .installation_directory()
-            .join("SystemFiles")
-            .join("Links")
-            .join("WSTP")
-            .join("DeveloperKit")
-            .join(SystemID::current_rust_target().as_str())
-            .join("CompilerAdditions");
+        let path = self.target_wstp_sdk()?.wstp_compiler_additions_directory();
 
         if !path.is_dir() {
             return Err(Error::unexpected_app_layout(
@@ -1486,6 +1668,16 @@ impl WolframApp {
 }
 
 //======================================
+// Conversion Impls
+//======================================
+
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Error {
+        Error(ErrorKind::IO(err.to_string()))
+    }
+}
+
+//======================================
 // Formatting Impls
 //======================================
 
@@ -1519,6 +1711,18 @@ impl Display for ErrorKind {
                     path.display()
                 )
             },
+            ErrorKind::UnexpectedLayout {
+                resource_name,
+                dir,
+                path,
+            } => {
+                write!(
+                    f,
+                    "in component at '{}', {resource_name} does not exist at the expected location: {}",
+                    dir.display(),
+                    path.display()
+                )
+            },
             ErrorKind::UnexpectedEnvironmentValueLayout {
                 resource_name,
                 env_var,
@@ -1542,6 +1746,7 @@ impl Display for ErrorKind {
                 f,
                 "operation '{operation}' is not yet implemented for this platform: {target_os:?}",
             ),
+            ErrorKind::IO(io_err) => write!(f, "IO error during discovery: {}", io_err),
             ErrorKind::Other(message) => write!(f, "{message}"),
         }
     }

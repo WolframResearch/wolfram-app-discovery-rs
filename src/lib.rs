@@ -648,6 +648,19 @@ impl SystemID {
 
         Ok(id)
     }
+
+    pub(crate) fn operating_system(&self) -> OperatingSystem {
+        match self {
+            SystemID::MacOSX_x86_64 | SystemID::MacOSX_ARM64 => OperatingSystem::MacOS,
+            SystemID::Windows_x86_64 | SystemID::Windows => OperatingSystem::Windows,
+            SystemID::Linux_x86_64
+            | SystemID::Linux_ARM64
+            | SystemID::Linux_ARM
+            | SystemID::Linux => OperatingSystem::Linux,
+            SystemID::iOS_ARM64 => OperatingSystem::Other,
+            SystemID::Android => OperatingSystem::Other,
+        }
+    }
 }
 
 impl WolframVersion {
@@ -861,13 +874,15 @@ impl WstpSdk {
             ));
         }
 
+        // NOTE: Determine the file name based on the specified `system_id`,
+        //       NOT based on the current target OS.
         let wstp_static_library = compiler_additions.join(
-            build_scripts::wstp_static_library_file_name(OperatingSystem::target_os())?,
+            build_scripts::wstp_static_library_file_name(system_id.operating_system())?,
         );
 
         if !wstp_static_library.is_file() {
             return Err(Error::unexpected_layout(
-                "WSTP static library file ",
+                "WSTP static library file",
                 dir,
                 wstp_static_library,
             ));

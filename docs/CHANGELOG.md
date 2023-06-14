@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.4.8] — 2023-06-14
+
+### Fixed
+
+* Fix issue with WSTP static library name being determined based on compile time
+  Rust target OS instead of System ID specified by the caller at runtime. ([#66])
+
+  This caused `WstpSdk::try_from_directory()` and
+  `WstpSdk::try_from_directory_with_system_id()` to look for the WSTP static
+  library in the wrong place when doing cross-compilation operations.
+
+
+
 ## [0.4.7] — 2023-06-12
 
 ### Added
@@ -467,10 +480,14 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.7 -->
 [#63]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/63
 
+<!-- v0.4.8 -->
+[#66]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/66
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.8...HEAD
 
+[0.4.8]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.4...v0.4.5

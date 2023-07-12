@@ -108,7 +108,7 @@ available for all major platforms from the GitHub Releases page.
 (the [Rust package manager](https://doc.rust-lang.org/cargo/)) by executing:
 
 ```shell
-$ cargo install --features=cli wolfram-app-discovery
+cargo install --features=cli wolfram-app-discovery
 ```
 
 This will install the latest version of

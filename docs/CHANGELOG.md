@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] — 2025-02-23
+
+### Added
+
+* Added new `WolframAppType::WolframApp` variant to cover the new unified
+  Wolfram app used in versions 14.1+. Also support recognizing the new
+  'com.wolfram.WolframApp' bundle identifier for this app. ([#70])
 
 ## [0.4.8] — 2023-06-14
 
@@ -483,10 +490,14 @@ Initial release of `wolfram-app-discovery`.
 <!-- v0.4.8 -->
 [#66]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/66
 
+<!-- v0.4.9 -->
+[#70]: https://github.com/WolframResearch/wolfram-app-discovery-rs/pull/70
+
 
 <!-- This needs to be updated for each tagged release. -->
-[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.9...HEAD
 
+[0.4.9]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.8...v0.4.9
 [0.4.8]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/WolframResearch/wolfram-app-discovery-rs/compare/v0.4.5...v0.4.6

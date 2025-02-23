@@ -36,6 +36,8 @@ This method uses [`WolframApp::try_default()`] to locate the default app.
 * `--app-type <APP_TYPES>` — Wolfram application types to include
 
   Possible values:
+  - `wolfram-app`:
+    Unified Wolfram App
   - `mathematica`:
     [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
   - `engine`:
@@ -115,6 +117,8 @@ List all locatable Wolfram apps
 * `--app-type <APP_TYPES>` — Wolfram application types to include
 
   Possible values:
+  - `wolfram-app`:
+    Unified Wolfram App
   - `mathematica`:
     [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
   - `engine`:

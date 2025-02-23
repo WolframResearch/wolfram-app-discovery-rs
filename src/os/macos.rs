@@ -38,6 +38,7 @@ impl WolframAppType {
         use WolframAppType::*;
 
         match self {
+            WolframApp                  => "com.wolfram.WolframApp",
             Mathematica                 => "com.wolfram.Mathematica",
             PlayerPro                   => "com.wolfram.Mathematica.PlayerPro",
             Player                      => "com.wolfram.Mathematica.Player",

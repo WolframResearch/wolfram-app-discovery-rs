@@ -112,6 +112,8 @@ pub struct WolframApp {
 #[non_exhaustive]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 pub enum WolframAppType {
+    /// Unified Wolfram App
+    WolframApp,
     /// [Wolfram Mathematica](https://www.wolfram.com/mathematica/)
     Mathematica,
     /// [Wolfram Engine](https://wolfram.com/engine)
@@ -447,6 +449,7 @@ impl WolframAppType {
         use WolframAppType::*;
 
         vec![
+            WolframApp,
             Mathematica,
             Desktop,
             Engine,
@@ -476,6 +479,7 @@ impl WolframAppType {
 
         match self {
             // Unrestricted | with a front end
+            WolframApp => 110,
             Desktop => 100,
             Mathematica => 99,
             FinancePlatform => 98,
@@ -499,6 +503,7 @@ impl WolframAppType {
     #[allow(dead_code)]
     fn app_name(&self) -> &'static str {
         match self {
+            WolframAppType::WolframApp => "Wolfram",
             WolframAppType::Mathematica => "Mathematica",
             WolframAppType::Engine => "Wolfram Engine",
             WolframAppType::Desktop => "Wolfram Desktop",

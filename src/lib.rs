@@ -1056,11 +1056,22 @@ impl WolframApp {
         //-----------------------------------------------------------------------
 
         if let Some(dir) = try_wolframscript_installation_directory()? {
-            let app = WolframApp::from_installation_directory(dir)?;
-            // If the app doesn't pass the filter, silently ignore it.
-            if !filter.check_app(&app).is_err() {
-                return Ok(app);
-            }
+	    match WolframApp::from_installation_directory(dir){
+		Ok(app) => {
+		    // If the app doesn't pass the filter, silently ignore it.
+		    if !filter.check_app(&app).is_err() {
+			return Ok(app);
+		    }
+		}
+		,
+		//Ignore UnsupportedPlatform, as discover_with_filter()
+		//may still be able to find the app
+		Err(Error(ErrorKind::UnsupportedPlatform{..})) => {}
+		,
+		Err(err) => {
+		    return Err(err)
+		}
+	    }
         }
 
         //--------------------------------------------------

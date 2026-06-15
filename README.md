@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> **This repository is archived.** The `wolfram-app-discovery` crate now lives in the [`wolfram-rust-library`](https://github.com/WolframResearch/wolfram-rust-library) monorepo, in the [`wolfram-app-discovery/`](https://github.com/WolframResearch/wolfram-rust-library/tree/HEAD/wolfram-app-discovery) directory.
+
 # wolfram-app-discovery
 
 [![Crates.io](https://img.shields.io/crates/v/wolfram-app-discovery.svg)](https://crates.io/crates/wolfram-app-discovery)
